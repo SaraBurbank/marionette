@@ -1,4 +1,4 @@
-import Matter from 'matter-js';
+import { body } from "./skeleton.js";
 
 // module aliases
 var Engine = Matter.Engine,
@@ -7,24 +7,27 @@ var Engine = Matter.Engine,
     Bodies = Matter.Bodies,
     Composite = Matter.Composite;
 
-// create an engine, renderer, and ground
-var engine;
-var render;
-var box1;
+// engine - world (collection of bodies) simulation updates
+const engine = Engine.create();
+const world = engine.world;
 
-function setup () {
-    createCanvas(400, 400);
-    engine = Engine.create();
-    render = Render.create({ element: document.body, engine: engine });
-    world = engine.world;
-    box1 = Bodies.rectangle(200, 200, 50, 50);
-    Runner.run(engine);
-    Render.run(render);
-    console.log(box1);
-}
+// render - visual representation of the world as <canvas>
+const render = Render.create({ 
+    element: document.body, 
+    engine: engine,
+    options: {
+    pixelRatio: "auto",
+    wireframes: true,
+    background: "#dbfaf4",
+    wireframeBackground: "#343131", }
+});
 
-function draw () {
-    background(220);
-    fill(255, 0, 0);
-    ellipse(mouseX, mouseY, 50, 50);
-}
+// create ground and add bodies to the world
+var ground = Bodies.rectangle(400, 610, 810, 60, { isStatic: true });
+Composite.add(world, [body, ground]);
+
+Render.run(render);
+
+// runner - engine update loop
+const runner = Runner.create();
+Runner.run(runner, engine);
