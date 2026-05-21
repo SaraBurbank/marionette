@@ -1,17 +1,14 @@
 // module aliases
-var Bodies = Matter.Bodies,
-    Body = Matter.Body,
-    Constraint = Matter.Constraint,
-    Common = Matter.Common,
-    Composite = Matter.Composite;
+const { Bodies, Body, Constraint, Common, Composite }  = Matter
 
 var scale = 1,
     x = 350,
-    y = 200,
+    y = 450,
     options = {
-              render: {
-                  fillStyle: Common.choose(['#f19648', '#f5d259', '#f55a3c', '#063e7b', '#ececd1'])
-              }};
+        render: {
+            fillStyle: Common.choose(['#f19648', '#f5d259', '#f55a3c', '#063e7b', '#ececd1'])
+        }
+    };
 
 var headOptions = Common.extend({
     label: 'head',
@@ -125,6 +122,20 @@ var leftUpperLeg = Bodies.rectangle(x - 20 * scale, y + 57 * scale, 20 * scale, 
 var leftLowerLeg = Bodies.rectangle(x - 20 * scale, y + 97 * scale, 20 * scale, 60 * scale, leftLowerLegOptions);
 var rightUpperLeg = Bodies.rectangle(x + 20 * scale, y + 57 * scale, 20 * scale, 40 * scale, rightLegOptions);
 var rightLowerLeg = Bodies.rectangle(x + 20 * scale, y + 97 * scale, 20 * scale, 60 * scale, rightLowerLegOptions);
+
+// Anchor at the chest's starting position
+var anchor = Bodies.circle(x, y, 5, { 
+    isStatic: true,
+    render: { visible: false }
+});
+
+var anchorToChest = Constraint.create({
+    bodyA: anchor,
+    bodyB: chest,
+    length: 0,
+    stiffness: 0.9,
+    render: { visible: false }
+});
 
 var chestToRightUpperArm = Constraint.create({
     bodyA: chest,
@@ -298,6 +309,6 @@ export var skeleton = Composite.create({
         upperToLowerLeftArm, upperToLowerRightArm, chestToLeftUpperArm, 
         chestToRightUpperArm, headContraint, upperToLowerLeftLeg, 
         upperToLowerRightLeg, chestToLeftUpperLeg, chestToRightUpperLeg,
-        legToLeg
+        legToLeg, anchorToChest
     ]
 });
