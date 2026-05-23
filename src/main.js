@@ -1,7 +1,20 @@
-import { Skeleton } from "./skeleton/skeleton.js";
+import { Skeleton } from "./body/skeleton.js";
+import { IKSolver } from "./IKSolver.js";
 import { InputHandler } from "./inputHandler.js";
 
-const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint } = Matter;
+/** TODO 
+ * -> fix constraints
+ * -> stretch on ik works, but the rest kind of works
+ * -> improve skeleton
+ * -> improve bone and body rotation on FK
+ * 
+ * UI TODO
+ * -> add button for reset pose
+ * -> improve skeleton look
+ * -> Zoom
+ * */ 
+
+const { Engine, Render, Runner, Bodies, Composite } = Matter;
     
 // engine - world (collection of bodies) simulation updates
 const engine = Engine.create();
@@ -17,16 +30,49 @@ const render = Render.create({
         height: window.innerHeight / 1.04,
         pixelRatio: "auto",
         wireframes: false,
-        background: "#343131",
-        wireframeBackground: "#343131", 
+        background: "#343131", 
     }
 });
 Render.run(render);
 
 // Adding bodies to screen ──────────
-const ground = Bodies.rectangle(window.innerWidth  / 2, window.innerHeight / 1.05, 810, 60, { isStatic: true }) // ground (may remove it/ edit for better UI)
-const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 1.33); // new puppet
-// adding shapes to puppet with relationships
+const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 2);
+
+// IK chains
+const ikSolver = new IKSolver(skeleton);
+const ikTargets = {
+    rHand: ikSolver.addTarget('R_Hand', 'R_Shoulder', {
+        R_Forearm: { min: 0, max: Math.PI * 0.9 },
+    }),
+    lHand: ikSolver.addTarget('L_Hand', 'L_Shoulder', {
+        L_Forearm: { min: -Math.PI * 0.9, max: 0 },
+    }),
+    rFoot: ikSolver.addTarget('R_Foot', 'R_Hip', {
+        R_Shin: { min: -Math.PI * 0.85, max: 0 },
+    }),
+    lFoot: ikSolver.addTarget('L_Foot', 'L_Hip', {
+        L_Shin: { min: 0, max: Math.PI * 0.85 },
+    }),
+    head: ikSolver.addTarget('Head', 'Neck', {
+        Head: { min: -0.6, max: 0.6 },
+    }),
+};
+
+const input = new InputHandler(render.canvas, skeleton, ikSolver); // mouse controls
+console.log(input)
+input.setEffector('R_Hand', ikTargets.rHand);
+input.setEffector('L_Hand', ikTargets.lHand);
+input.setEffector('R_Foot', ikTargets.rFoot);
+input.setEffector('L_Foot', ikTargets.lFoot);
+input.setEffector('Head',   ikTargets.head);
+
+// adding matter.js shapes to puppet with relationships
+const anchorBody = Bodies.circle(skeleton.rootX,skeleton.rootY, 4, { // anchoring body to one place (may change it)
+    isStatic: true,
+    render: { visible: false },
+    collisionFilter: { mask: 0}
+});
+
 const bodyMap = {
     Spine: Bodies.rectangle(0, 0, 40, 40),
     Chest: Bodies.rectangle(0, 0, 50, 50),
@@ -50,16 +96,7 @@ const bodyMap = {
     L_Foot: Bodies.rectangle(0, 0, 25, 20) 
 }
 skeleton.attachBodies(bodyMap);
-console.log("skeleton: ", skeleton);
-
-const input = new InputHandler(render.canvas, skeleton); // mouse controls
-const anchorBody = Bodies.circle(skeleton.rootX,skeleton.rootY, 4, { // anchoring body to one place (may change it)
-    isStatic: true,
-    render: { visible: false },
-    collisionFilter: { mask: 0}
-});
-Composite.add(world, [anchorBody, ground]);
-Composite.add(world, Object.values(bodyMap));
+Composite.add(world, [anchorBody, ...Object.values(bodyMap)]);
 
 // runner - engine update loop
 const runner = Runner.create();
@@ -67,6 +104,7 @@ Runner.run(runner, engine);
 
 // animation and logic loop
 function loop() {
+    ikSolver.solve() // writes corrected local angles onto active chain
     skeleton.update();
     skeleton.syncBodiesToBones(); // FK drives Matter.js bodies
     requestAnimationFrame(loop);

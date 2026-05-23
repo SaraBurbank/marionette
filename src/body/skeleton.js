@@ -97,11 +97,11 @@ export class Skeleton {
             this._updateSubtree(child, tailX, tailY, bone.worldAngle);
         }
     }
-    // getBone(name) {
-    //     const bone = this.bones[name];
-    //     if (!bone) throw new Error(`Skeleton: no bone named "${name}"`);
-    //     return bone;
-    // }
+    getBone(name) {
+        const bone = this.bones[name];
+        if (!bone) throw new Error(`Skeleton: no bone named "${name}"`);
+        return bone;
+    }
     getChain(tipName, rootName) {
         const chain = [];
         let current = this.getBone(tipName);

@@ -16,7 +16,6 @@ export class Bone {
             parent.children.push(this);
         }
     }
-
     // bone's END point position
     get tailX() {
         return this.worldX + Math.sin(this.worldAngle) * this.length;
@@ -24,14 +23,11 @@ export class Bone {
     get tailY() {
         return this.worldY + Math.cos(this.worldAngle) * this.length;
     }
-
-    // bone rotation
-    rotate(delta, min = -Math.PI, max = Math.PI) {
+    
+    rotate(delta, min = -Math.PI, max = Math.PI) {  // bone rotation
         this.localAngle = Math.max(min, Math.min(max, this.localAngle + delta));
     }
-
-    // bone's local angle
-    setAngle(angle, min = -Math.PI, max = Math.PI) {
+    setAngle(angle, min = -Math.PI, max = Math.PI) {    // bone's local angle
         this.localAngle = Math.max(min, Math.min(max, angle));
     }
 }
