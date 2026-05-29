@@ -9,6 +9,10 @@ export class InputHandler {
         this._lastX = 0;
         this._lastY = 0;
         this._activeIKidX = null;
+        this._draggingIK = false;
+        this._dragStartX = 0;
+        this._dragStartY = 0;
+        this._dragThreshold = 8;
         this.sensitivity = 100; // mouse drag sensitivity -> lower = more sensitive
         
         this._effectorMap = {};
@@ -48,12 +52,24 @@ export class InputHandler {
         if (!hit) return;
         if (this._effectorMap.hasOwnProperty(hit.name)) {
             this._activeIKidX = this._effectorMap[hit.name];
-            this.ikSolver.setTarget(this._activeIKidX, x, y);
+            this._draggingIK = false;
+            this._dragStartX = x;
+            this._dragStartY = y;
         }
     }
     _onMove(e) {
         if (!this._isDown) return;
         const { x, y } = this._getPos(e);
+        const dragDist = Math.hypot(x - this._dragStartX, y - this._dragStartY);
+
+        if (this._activeIKidX !== null) {
+            if (!this._draggingIK && dragDist >= this._dragThreshold) {
+                this._draggingIK = true;
+            }
+            if (this._draggingIK) {
+                this.ikSolver.setTarget(this._activeIKidX, x, y);
+            }
+        } else if (this.skeleton.selectedBone) {
         
         if (this._activeIKidX !== null) {
             this.ikSolver.setTarget(this._activeIKidX, x, y);
@@ -64,12 +80,14 @@ export class InputHandler {
  
         this._lastX = x;
         this._lastY = y;
+        }
     }
     _onUp() {
         this._isDown = false;
-        if (this._activeIKidX !== null) {
+        if (this._activeIKidX !== null && this._draggingIK) {
             this.ikSolver.releaseTarget(this._activeIKidX);
-            this._activeIKidX = null;
         }
+        this._activeIKidX = null;
+        this._draggingIK = false;
     }
 }

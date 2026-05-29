@@ -116,6 +116,27 @@ export class Skeleton {
     getAllBones() {
         return Object.values(this.bones);
     }
+    drawBones(context) {
+        context.save();
+        context.strokeStyle = '#fffcf2';
+        context.lineWidth = 8;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.fillStyle = '#ffb703';
+
+        for (const bone of this.getAllBones()) {
+            if (bone.length === 0) continue;
+            context.beginPath();
+            context.moveTo(bone.worldX, bone.worldY);
+            context.lineTo(bone.tailX, bone.tailY);
+            context.stroke();
+
+            context.beginPath();
+            context.arc(bone.worldX, bone.worldY, 4, 0, Math.PI * 2);
+            context.fill();
+        }
+        context.restore();
+    }
     getBoneAt(x, y, threshold = 20) {
         let closest = null;
         let closestDist = threshold;
@@ -123,9 +144,17 @@ export class Skeleton {
         for (const bone of this.getAllBones()) {
             if (bone.length === 0) continue; 
  
-            const midX = bone.worldX + Math.sin(bone.worldAngle) * bone.length * 0.5;
-            const midY = bone.worldY + Math.cos(bone.worldAngle) * bone.length * 0.5;
-            const dist = Math.hypot(x - midX, y - midY);
+            const startX = bone.worldX;
+            const startY = bone.worldY;
+            const endX = bone.tailX;
+            const endY = bone.tailY;
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const lenSq = dx * dx + dy * dy;
+            const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((x - startX) * dx + (y - startY) * dy) / lenSq));
+            const projX = startX + dx * t;
+            const projY = startY + dy * t;
+            const dist = Math.hypot(x - projX, y - projY);
  
             if (dist < closestDist) {
                 closestDist = dist;

@@ -1,8 +1,25 @@
 export class IKSolver {
     constructor (skeleton) {
         this.skeleton = skeleton;
-        this.tolerance = 0.5
-        this.maxIterations = 10; // iterations per frame per chain (higher = slower)
+        this.tolerance = 0.2;
+        this.maxIterations = 20; // iterations per frame per chain (higher = slower)
+        this.blendFactor = 0.35; // smooth IK transitions
+        this.constraintDefaults = {
+            R_Shoulder: { min: 0, max: Math.PI * 0.9 },
+            R_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
+            R_Forearm: { min: 0.1, max: Math.PI * 0.95 },
+            L_Shoulder: { min: -Math.PI * 0.9, max: 0 },
+            L_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
+            L_Forearm: { min: -Math.PI * 0.95, max: -0.1 },
+            R_Hip: { min: -0.35, max: Math.PI * 0.45 },
+            R_UpperLeg: { min: -Math.PI * 0.6, max: Math.PI * 0.3 },
+            R_Shin: { min: -Math.PI * 0.95, max: -0.1 },
+            L_Hip: { min: -Math.PI * 0.45, max: 0.35 },
+            L_UpperLeg: { min: -Math.PI * 0.3, max: Math.PI * 0.6 },
+            L_Shin: { min: 0.1, max: Math.PI * 0.95 },
+            Neck: { min: -0.35, max: 0.35 },
+            Head: { min: -0.6, max: 0.6 },
+        };
         this.targets = [];
         /**
          * Structure:
@@ -19,13 +36,14 @@ export class IKSolver {
     }
     addTarget(boneName, rootName, constraints = {}) {
         const tip = this.skeleton.getBone(boneName);
+        const mergedConstraints = { ...this.constraintDefaults, ...constraints };
         this.targets.push({
             boneName,
             rootName,
             targetX: tip.tailX, // start at current tip position
             targetY: tip.tailY,
             active: false,       // inactive until user drags the effector
-            constraints,
+            constraints: mergedConstraints,
         });
         return this.targets.length - 1;
     }   
@@ -75,14 +93,15 @@ export class IKSolver {
         this._applyPositions(chain, positions, constraints);  // convert positions to bone angles
     }
     _getPositions(chain) {
-        const positions = chain.map(bone => ({
-            x: bone.worldX,
-            y: bone.worldY,
-        }));
+        const positions = [{
+            x: chain[0].tailX,
+            y: chain[0].tailY,
+        }];
 
-        const root = chain[chain.length - 1];
-        positions.push({ x: root.tailX, y: root.tailY });
- 
+        for (const bone of chain) {
+            positions.push({ x: bone.worldX, y: bone.worldY });
+        }
+
         return positions;
     }
     _backwardPass(chain, positions, targetX, targetY) {
@@ -104,14 +123,14 @@ export class IKSolver {
         positions[lastIdx].x = anchorX;
         positions[lastIdx].y = anchorY;
  
-        for (let i = chain.length - 1; i > 0; i--) {    // move each joint away the previous joint
+        for (let i = chain.length - 1; i >= 0; i--) {
             const boneLength = chain[i].length;
-            const dx = positions[i - 1].x - positions[i].x;
-            const dy = positions[i - 1].y - positions[i].y;
+            const dx = positions[i].x - positions[i + 1].x;
+            const dy = positions[i].y - positions[i + 1].y;
             const dist = Math.hypot(dx, dy) || 0.0001;
             const scale = boneLength / dist;
-            positions[i - 1].x = positions[i].x + dx * scale;
-            positions[i - 1].y = positions[i].y + dy * scale;
+            positions[i].x = positions[i + 1].x + dx * scale;
+            positions[i].y = positions[i + 1].y + dy * scale;
         }
     }
     _stretchToward(chain, positions, anchorX, anchorY, targetX, targetY) {
@@ -134,17 +153,17 @@ export class IKSolver {
             }
         }
     }
-    _applyPositions(chain, positions, constraints) {
+    _applyPositions(chain, positions, constraints = {}) {
         for (let i = chain.length - 1; i >= 0; i--) {
             const bone = chain[i];
  
-            // vector joint to next joint
-            const nextPos = positions[i];       // this bone's head
-            const prevPos = positions[i + 1];   // parent joint
+            // bone start and end positions
+            const startPos = positions[i + 1];   // this bone's head/start
+            const endPos = positions[i];         // this bone's tail/end
  
-            // new pointing direction
-            const dx = nextPos.x - prevPos.x;
-            const dy = nextPos.y - prevPos.y;
+            // new pointing direction from start to tail
+            const dx = endPos.x - startPos.x;
+            const dy = endPos.y - startPos.y;
  
             // angle from +Y axis clockwise
             const worldAngle = Math.atan2(dx, dy);
@@ -155,18 +174,25 @@ export class IKSolver {
             localAngle = this._normalizeAngle(localAngle);
  
             // Apply joint constraints
-            if (constraints[bone.name]) {
-                const { min, max } = constraints[bone.name];
-                localAngle = Math.max(min, Math.min(max, localAngle));
-            }
+            localAngle = this._clampAngle(bone.name, localAngle, constraints);
  
-            bone.localAngle = localAngle;
+            const previousAngle = bone.localAngle;
+            const angleDelta = this._normalizeAngle(localAngle - previousAngle);
+            const blendedAngle = previousAngle + angleDelta * this.blendFactor;
+            bone.localAngle = this._normalizeAngle(blendedAngle);
         }
     }
     _normalizeAngle(localAngle) {
         while (localAngle >  Math.PI) localAngle -= 2 * Math.PI;
         while (localAngle < -Math.PI) localAngle += 2 * Math.PI;
         return localAngle;
+    }
+    _clampAngle(boneName, angle, constraints) {
+        const constraint = constraints[boneName];
+        if (!constraint) return this._normalizeAngle(angle);
+        const min = constraint.min ?? -Math.PI;
+        const max = constraint.max ?? Math.PI;
+        return Math.max(min, Math.min(max, this._normalizeAngle(angle)));
     }
     // chainLength(chain) {
     //     return chain.reduce((sum, bone) => sum + bone.length, 0);
