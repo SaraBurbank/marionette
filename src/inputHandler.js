@@ -70,17 +70,13 @@ export class InputHandler {
                 this.ikSolver.setTarget(this._activeIKidX, x, y);
             }
         } else if (this.skeleton.selectedBone) {
-        
-        if (this._activeIKidX !== null) {
-            this.ikSolver.setTarget(this._activeIKidX, x, y);
-        } else if (this.skeleton.selectedBone) {
             const dx = x - this._lastX;
-            this.skeleton.selectedBone.rotate(dx / this.sensitivity);
+            const limits = this.skeleton.getBoneLimits(this.skeleton.selectedBone.name);
+            this.skeleton.selectedBone.rotate(dx / this.sensitivity, limits.min, limits.max);
         }
  
         this._lastX = x;
         this._lastY = y;
-        }
     }
     _onUp() {
         this._isDown = false;

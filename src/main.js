@@ -1,16 +1,14 @@
 import { Skeleton } from "./body/skeleton.js";
 import { IKSolver } from "./IKSolver.js";
 import { InputHandler } from "./inputHandler.js";
+import { Cloth } from "./body/cloth.js";
+import { SecondBodyLayer } from "./secondBody.js";
 
 /** TODO 
- * -> fix constraints
- * -> stretch on ik works, but the rest kind of works
- * -> improve skeleton
- * -> improve bone and body rotation on FK
- * 
+ * -> fix constraints for hip (cannot bend to the left side)
+ *
  * UI TODO
  * -> add button for reset pose
- * -> improve skeleton look
  * -> Zoom
  * */ 
 
@@ -19,7 +17,7 @@ const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
 // engine - world (collection of bodies) simulation updates
 const engine = Engine.create();
 const world = engine.world;
-engine.gravity.y = 0.3;
+engine.gravity.y = 0;
 
 // render - visual representation of the world as <canvas>
 const render = Render.create({ 
@@ -35,7 +33,7 @@ const render = Render.create({
 });
 Render.run(render);
 
-// Adding bodies to screen ──────────
+// Creating the puppet's skeleton 
 const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 2);
 skeleton.update();
 
@@ -58,23 +56,21 @@ const ikTargets = {
         L_Forearm: { min: -Math.PI * 0.95, max: -0.1 },
     }),
     rFoot: ikSolver.addTarget('R_Foot', 'R_Hip', {
-        R_Hip: { min: -0.35, max: Math.PI * 0.45 },
-        R_UpperLeg: { min: -Math.PI * 0.6, max: Math.PI * 0.3 },
-        R_Shin: { min: -Math.PI * 0.95, max: -0.1 },
+        R_Hip: { min: -1.2, max: 1.0 },
+        R_UpperLeg: { min: -1.0, max: 0.8 },
+        R_Shin: { min: -2.0, max: -0.1 },
     }),
     lFoot: ikSolver.addTarget('L_Foot', 'L_Hip', {
-        L_Hip: { min: -Math.PI * 0.45, max: 0.35 },
-        L_UpperLeg: { min: -Math.PI * 0.3, max: Math.PI * 0.6 },
-        L_Shin: { min: 0.1, max: Math.PI * 0.95 },
+        L_Hip: { min: -1.0, max: 1.2 },
+        L_UpperLeg: { min: -0.8, max: 1.0 },
+        L_Shin: { min: 0.1, max: 2.0 },
     }),
     head: ikSolver.addTarget('Head', 'Neck', {
         Neck: { min: -0.35, max: 0.35 },
         Head: { min: -0.6, max: 0.6 },
     }),
 };
-
 const input = new InputHandler(render.canvas, skeleton, ikSolver); // mouse controls
-console.log(input)
 input.setEffector('R_Hand', ikTargets.rHand);
 input.setEffector('L_Hand', ikTargets.lHand);
 input.setEffector('R_Foot', ikTargets.rFoot);
@@ -92,9 +88,8 @@ const boneStyle = {
     fillStyle: 'rgba(255, 255, 255, 0.08)',
     strokeStyle: '#fffcf2',
     lineWidth: 3,
-    visible: true,
+    visible: false,
 };
-
 const makeBone = (width, height) => Bodies.rectangle(0, 0, width, height, { render: boneStyle });
 
 const bodyMap = {
@@ -119,9 +114,45 @@ const bodyMap = {
     L_Shin: makeBone(25, 42),
     L_Foot: makeBone(25, 20),
 }
-
 skeleton.attachBodies(bodyMap);
-Composite.add(world, [anchorBody, ...Object.values(bodyMap)]);
+
+const cloth = Cloth(200, 247.5, 6, 12, 5, 5, false, 8);
+Composite.add(world, [anchorBody, ...Object.values(bodyMap), cloth]);
+
+// Secondary body 
+const secondBody = new SecondBodyLayer(world, skeleton, engine);
+ 
+// hair
+secondBody.addHairStrand('Head', 5, 12, {
+    radius:      4,
+    mass:        0.15,
+    frictionAir: 0.10,
+    stiffness:   0.5,
+    color:       '#7af4eb',
+    attachAt:    'tail',
+});
+ 
+// // hair volume
+// secondBody.addHairStrand('Head', 4, 13, {
+//     radius:      3,
+//     mass:        0.12,
+//     frictionAir: 0.09,
+//     stiffness:   0.45,
+//     color:       '#4a3020',
+//     attachAt:    'tail',
+// });
+ 
+// // clothing - shirt
+// secondBody.addClothingChain('Chest', 4, 14, {
+//     width:       18,
+//     height:      8,
+//     mass:        0.6,
+//     frictionAir: 0.07,
+//     stiffness:   0.35,
+//     color:       'rgba(255,255,255,0.12)',
+//     strokeColor: 'rgba(255,255,255,0.35)',
+//     attachAt:    'tail',
+// });
 
 // runner - engine update loop
 const runner = Runner.create();
@@ -132,6 +163,7 @@ function loop() {
     ikSolver.solve() // writes corrected local angles onto active chain
     skeleton.update();
     skeleton.syncBodiesToBones(); // FK drives Matter.js bodies
+    secondBody.update();
     requestAnimationFrame(loop);
 }
 

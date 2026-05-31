@@ -1,38 +1,26 @@
 export class IKSolver {
     constructor (skeleton) {
         this.skeleton = skeleton;
-        this.tolerance = 0.2;
+        this.tolerance = 1.0;
         this.maxIterations = 20; // iterations per frame per chain (higher = slower)
-        this.blendFactor = 0.35; // smooth IK transitions
+        this.blendFactor = 0.5; // smooth IK transitions
         this.constraintDefaults = {
             R_Shoulder: { min: 0, max: Math.PI * 0.9 },
             R_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
-            R_Forearm: { min: 0.1, max: Math.PI * 0.95 },
+            R_Forearm:  { min: 0.1, max: Math.PI * 0.95 },
             L_Shoulder: { min: -Math.PI * 0.9, max: 0 },
             L_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
-            L_Forearm: { min: -Math.PI * 0.95, max: -0.1 },
-            R_Hip: { min: -0.35, max: Math.PI * 0.45 },
-            R_UpperLeg: { min: -Math.PI * 0.6, max: Math.PI * 0.3 },
-            R_Shin: { min: -Math.PI * 0.95, max: -0.1 },
-            L_Hip: { min: -Math.PI * 0.45, max: 0.35 },
-            L_UpperLeg: { min: -Math.PI * 0.3, max: Math.PI * 0.6 },
-            L_Shin: { min: 0.1, max: Math.PI * 0.95 },
-            Neck: { min: -0.35, max: 0.35 },
-            Head: { min: -0.6, max: 0.6 },
+            L_Forearm:  { min: -Math.PI * 0.95, max: -0.1 },
+            R_Hip:      { min: -1.2, max: 1.0 },
+            R_UpperLeg: { min: -1.0, max: 0.8 },
+            R_Shin:     { min: -2.0, max: -0.1 },
+            L_Hip:      { min: -1.0, max: 1.2 },
+            L_UpperLeg: { min: -0.8, max: 1.0 },
+            L_Shin:     { min: 0.1, max: 2.0 },
+            Neck:       { min: -0.35, max: 0.35 },
+            Head:       { min: -0.6, max: 0.6 },
         };
         this.targets = [];
-        /**
-         * Structure:
-         * {
-         *   boneName:  'R_Hand',       // bone at the end of the chain
-         *   rootName: 'R_Shoulder',   // bone at the start (stays anchored)
-         *   targetX:  400,            // world X the tip reaches for
-         *   targetY:  300,            // world Y the tip reaches for
-         *   active:   true,           // false = skip this target this frame
-         *   constraints: {            // optional per-joint angle limits (radians)
-         *     'R_Forearm': { min: -0.1, max: Math.PI * 0.9 },
-         *   }
-         */
     }
     addTarget(boneName, rootName, constraints = {}) {
         const tip = this.skeleton.getBone(boneName);
@@ -42,7 +30,7 @@ export class IKSolver {
             rootName,
             targetX: tip.tailX, // start at current tip position
             targetY: tip.tailY,
-            active: false,       // inactive until user drags the effector
+            active: false,       // skip this target - inactive until user drags the effector
             constraints: mergedConstraints,
         });
         return this.targets.length - 1;
@@ -194,7 +182,7 @@ export class IKSolver {
         const max = constraint.max ?? Math.PI;
         return Math.max(min, Math.min(max, this._normalizeAngle(angle)));
     }
-    // chainLength(chain) {
-    //     return chain.reduce((sum, bone) => sum + bone.length, 0);
-    // }
+    chainLength(chain) {
+        return chain.reduce((sum, bone) => sum + bone.length, 0);
+    }
 }
