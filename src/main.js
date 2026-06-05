@@ -5,14 +5,14 @@ import { Cloth } from "./body/cloth.js";
 import { SecondBodyLayer } from "./secondBody.js";
 
 /** TODO 
- * -> fix constraints for hip (cannot bend to the left side)
- *
+ *  -> matter.js bodies are not places correctly. I want to make the body’s local origin correspond to the bone’s start joint
+ * I might need to change syncBodiesToBones() or how I make the bodies with matter.js
  * UI TODO
  * -> add button for reset pose
  * -> Zoom
  * */ 
 
-const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
+const { Engine, Render, Runner, Bodies, Composite, Events, Body } = Matter;
     
 // engine - world (collection of bodies) simulation updates
 const engine = Engine.create();
@@ -85,39 +85,44 @@ const anchorBody = Bodies.circle(skeleton.rootX,skeleton.rootY, 4, { // anchorin
 });
 
 const boneStyle = {
-    fillStyle: 'rgba(255, 255, 255, 0.08)',
-    strokeStyle: '#fffcf2',
-    lineWidth: 3,
-    visible: false,
+    fillStyle: '#c79c64',
+    strokeStyle: '#5e3b1e',
+    lineWidth: 2,
+    visible: true,
 };
-const makeBone = (width, height) => Bodies.rectangle(0, 0, width, height, { render: boneStyle });
+const makeBone = (width, height) => {
+    const boneBody = Bodies.rectangle(0, 0, width, height, { render: boneStyle });
+    Body.setCentre(boneBody, { x: 0, y: -height / 2 }, true);
+    return boneBody;
+};
 
 const bodyMap = {
-    Spine: makeBone(40, 40),
+    Spine: makeBone(30, 40),
     Chest: makeBone(50, 50),
-    Neck: makeBone(20, 20),
-    Head: makeBone(35, 35),
+    Neck: makeBone(16, 20),
+    Head: makeBone(36, 35),
     R_Shoulder: makeBone(25, 20),
-    R_UpperArm: makeBone(25, 40),
-    R_Forearm: makeBone(25, 38),
-    R_Hand: makeBone(25, 20),
+    R_UpperArm: makeBone(16, 40),
+    R_Forearm: makeBone(16, 38),
+    R_Hand: makeBone(18, 20),
     L_Shoulder: makeBone(25, 20),
-    L_UpperArm: makeBone(25, 40),
-    L_Forearm: makeBone(25, 38),
-    L_Hand: makeBone(25, 20),
-    R_Hip: makeBone(25, 15),
-    R_UpperLeg: makeBone(25, 45),
-    R_Shin: makeBone(25, 42),
-    R_Foot: makeBone(25, 20),
-    L_Hip: makeBone(25, 15),
-    L_UpperLeg: makeBone(25, 45),
-    L_Shin: makeBone(25, 42),
-    L_Foot: makeBone(25, 20),
+    L_UpperArm: makeBone(16, 40),
+    L_Forearm: makeBone(16, 38),
+    L_Hand: makeBone(18, 20),
+    R_Hip: makeBone(28, 15),
+    R_UpperLeg: makeBone(18, 45),
+    R_Shin: makeBone(18, 42),
+    R_Foot: makeBone(22, 20),
+    L_Hip: makeBone(28, 15),
+    L_UpperLeg: makeBone(18, 45),
+    L_Shin: makeBone(18, 42),
+    L_Foot: makeBone(22, 20),
 }
 skeleton.attachBodies(bodyMap);
 
-const cloth = Cloth(200, 247.5, 6, 12, 5, 5, false, 8);
-Composite.add(world, [anchorBody, ...Object.values(bodyMap), cloth]);
+// const cloth = new Cloth(300, 200, 10, 5, 5, 20, 0, 10, 2, 2)
+// Composite.add(world, [anchorBody, ...Object.values(bodyMap), cloth]);
+Composite.add(world, [anchorBody, ...Object.values(bodyMap)]);
 
 // Secondary body 
 const secondBody = new SecondBodyLayer(world, skeleton, engine);
@@ -132,27 +137,27 @@ secondBody.addHairStrand('Head', 5, 12, {
     attachAt:    'tail',
 });
  
-// // hair volume
-// secondBody.addHairStrand('Head', 4, 13, {
-//     radius:      3,
-//     mass:        0.12,
-//     frictionAir: 0.09,
-//     stiffness:   0.45,
-//     color:       '#4a3020',
-//     attachAt:    'tail',
-// });
+// hair volume
+secondBody.addHairStrand('Head', 4, 13, {
+    radius:      3,
+    mass:        0.12,
+    frictionAir: 0.09,
+    stiffness:   0.45,
+    color:       '#4a3020',
+    attachAt:    'tail',
+});
  
-// // clothing - shirt
-// secondBody.addClothingChain('Chest', 4, 14, {
-//     width:       18,
-//     height:      8,
-//     mass:        0.6,
-//     frictionAir: 0.07,
-//     stiffness:   0.35,
-//     color:       'rgba(255,255,255,0.12)',
-//     strokeColor: 'rgba(255,255,255,0.35)',
-//     attachAt:    'tail',
-// });
+// clothing - shirt
+secondBody.addClothingChain('Chest', 4, 14, {
+    width:       18,
+    height:      8,
+    mass:        0.6,
+    frictionAir: 0.07,
+    stiffness:   0.35,
+    color:       'rgba(255,255,255,0.12)',
+    strokeColor: 'rgba(255,255,255,0.35)',
+    attachAt:    'tail',
+});
 
 // runner - engine update loop
 const runner = Runner.create();

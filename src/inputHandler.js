@@ -39,6 +39,11 @@ export class InputHandler {
         const rect = this.canvas.getBoundingClientRect();
         return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
+    _normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= 2 * Math.PI;
+        while (angle < -Math.PI) angle += 2 * Math.PI;
+        return angle;
+    }
     _onDown(e) {
         this._isDown = true;
         const { x, y } = this._getPos(e);
