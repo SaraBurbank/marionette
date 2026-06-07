@@ -17,7 +17,7 @@ const { Engine, Render, Runner, Bodies, Composite, Events, Body } = Matter;
 // engine - world (collection of bodies) simulation updates
 const engine = Engine.create();
 const world = engine.world;
-engine.gravity.y = 0;
+engine.gravity.y = 1.0;
 
 // render - visual representation of the world as <canvas>
 const render = Render.create({ 
@@ -88,7 +88,7 @@ const boneStyle = {
     fillStyle: '#c79c64',
     strokeStyle: '#5e3b1e',
     lineWidth: 2,
-    visible: true,
+    visible: false,
 };
 const makeBone = (width, height) => {
     const boneBody = Bodies.rectangle(0, 0, width, height, { render: boneStyle });
@@ -128,9 +128,9 @@ Composite.add(world, [anchorBody, ...Object.values(bodyMap)]);
 const secondBody = new SecondBodyLayer(world, skeleton, engine);
  
 // hair
-secondBody.addHairStrand('Head', 5, 12, {
+secondBody.addHairStrand('Head', 10, 10, {
     radius:      4,
-    mass:        0.15,
+    mass:        0.2,
     frictionAir: 0.10,
     stiffness:   0.5,
     color:       '#7af4eb',
@@ -140,23 +140,28 @@ secondBody.addHairStrand('Head', 5, 12, {
 // hair volume
 secondBody.addHairStrand('Head', 4, 13, {
     radius:      3,
-    mass:        0.12,
-    frictionAir: 0.09,
-    stiffness:   0.45,
+    mass:        0.12,  // lower = floatier, higher = heavier swing
+    frictionAir: 0.09,  // damping: higher = less swing, lower = more
+    stiffness:   0.45,  // constraint stiffness: higher = less stretch
     color:       '#4a3020',
     attachAt:    'tail',
 });
  
 // clothing - shirt
-secondBody.addClothingChain('Chest', 4, 14, {
-    width:       18,
-    height:      8,
+secondBody.addClothingChain('Chest', 3, 16, {
+    columns:     10,
+    width:       14,
     mass:        0.6,
-    frictionAir: 0.07,
-    stiffness:   0.35,
-    color:       'rgba(255,255,255,0.12)',
+    frictionAir: 0.05,
+    stiffness:   0.03,
+    spreadFactor: 0.9,
+    color:       'rgba(255,255,255,0.16)',
     strokeColor: 'rgba(255,255,255,0.35)',
-    attachAt:    'tail',
+    attachBones: [
+        { boneName: 'L_Shoulder', attachAt: 'tail' },
+        { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 12 } },
+        { boneName: 'R_Shoulder', attachAt: 'tail' },
+    ],
 });
 
 // runner - engine update loop
