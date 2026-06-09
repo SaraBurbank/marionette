@@ -42,7 +42,6 @@ export class SecondBodyLayer {
                     }
                 }
             );
-            console.log(bodies.body)
             bodies.push(body);
 
             // constrain between this and previous segment
@@ -91,7 +90,7 @@ export class SecondBodyLayer {
         const particleOptions = {
             mass: cfg.mass,
             frictionAir: 0.06,
-            collisionFilter: { mask: 0 },
+            collisionFilter: { mask: options.mask },
             render: { visible: true, fillStyle: cfg.color, strokeStyle: cfg.strokeColor, lineWidth: 1 }
         };
         const constraintOptions = { stiffness: cfg.stiffness, render: { type: 'line', anchors: false, strokeStyle: cfg.strokeColor } };

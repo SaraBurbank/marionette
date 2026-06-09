@@ -149,18 +149,37 @@ secondBody.addHairStrand('Head', 4, 13, {
  
 // clothing - shirt
 secondBody.addClothingChain('Chest', 3, 16, {
-    columns:     10,
+    columns:     25,
     width:       14,
     mass:        0.6,
     frictionAir: 0.05,
     stiffness:   0.03,
-    spreadFactor: 0.9,
-    color:       'rgba(255,255,255,0.16)',
-    strokeColor: 'rgba(255,255,255,0.35)',
+    spreadFactor:0.9,
+    color:       'rgba(197, 25, 25, 0.16)',
+    strokeColor: 'rgba(222, 26, 26, 0.35)',
+    mask:        0,     // collisionFilter
     attachBones: [
         { boneName: 'L_Shoulder', attachAt: 'tail' },
         { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 12 } },
         { boneName: 'R_Shoulder', attachAt: 'tail' },
+    ],
+});
+
+// clothing - Skirt
+secondBody.addClothingChain('Chest', 6, 20, {
+    columns:     10,
+    width:       16,
+    mass:        10,
+    frictionAir: 10,
+    stiffness:   0.45,
+    spreadFactor: 0.9,
+    color:       'rgba(197, 25, 25, 0.16)',
+    strokeColor: 'rgba(222, 26, 26, 0.35)',
+    mask:        1,     // collisionFilter
+    attachBones: [
+        { boneName: 'L_Hip', attachAt: 'tail' },
+        { boneName: 'Chest', attachAt: 'head', offset: { x: 0, y: 12 } },
+        { boneName: 'R_Hip', attachAt: 'tail' },
     ],
 });
 
