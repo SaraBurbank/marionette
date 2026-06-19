@@ -18,6 +18,7 @@ export class UIController {
         this._saveABtn = null;
         this._saveBBtn = null;
         this._playBtn = null;
+        this._proportionSliders = [];
 
         // wire PoseManager state → button updates
         this.poses.onStateChange = (state) => this._onPoseStateChange(state);
@@ -103,9 +104,18 @@ export class UIController {
             { key: 'legs',  label: 'Legs',   min: 0.4, max: 2.0, step: 0.05, default: 1.0 },
             { key: 'head',  label: 'Head',   min: 0.5, max: 1.8, step: 0.05, default: 1.0 },
         ];
+        this._proportionSliders = [];
         for (const def of sliderDefs) {
             wrap.appendChild(this._buildSlider(def));
         }
+        const resetBtn = btn('Reset', () => {
+            this.proportions.reset();
+            for (const item of this._proportionSliders) {
+                item.slider.value = item.defaultVal;
+                item.valueLabel.textContent = item.defaultVal.toFixed(2);
+            }
+        });
+        wrap.appendChild(resetBtn);
         return wrap;
     }
     _buildSlider({ key, label: labelText, min, max, step, default: defaultVal }) {
@@ -134,13 +144,14 @@ export class UIController {
 
         row.appendChild(slider);
         row.appendChild(val);
+        this._proportionSliders.push({ key, slider, valueLabel: val, defaultVal });
         return row;
     }
     _buildResetSection() {
         const wrap = el('div', 'mn-section');
         const resetBtn = btn('Reset pose', () => {
             if (this.poses.hasA) {
-                this.poses.jumpToA();
+                this.poses.reset();
             }
         });
         resetBtn.classList.add('mn-btn-full');

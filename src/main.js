@@ -3,16 +3,20 @@ import { IKSolver } from "./IKSolver.js";
 import { InputHandler } from "./inputHandler.js";
 import { Cloth } from "./body/cloth.js";
 import { SecondBodyLayer } from "./secondBody.js";
+// import { FaceRenderer } from "./FaceRenderer.js";
+import { CharacterRenderer } from "./characterRenderer.js";
+import { PoseManager } from "./PoseManager.js";
+import { ProportionController } from "./ProportionController.js";
+import { UIController } from "./UIController.js";
 
 /** TODO 
- *  -> matter.js bodies are not places correctly. I want to make the body’s local origin correspond to the bone’s start joint
- * I might need to change syncBodiesToBones() or how I make the bodies with matter.js
+ *  -> Add shapes for marionette
+ *  -> Facial expressions
  * UI TODO
- * -> add button for reset pose
  * -> Zoom
  * */ 
 
-const { Engine, Render, Runner, Bodies, Composite, Events, Body } = Matter;
+const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
     
 // engine - world (collection of bodies) simulation updates
 const engine = Engine.create();
@@ -37,9 +41,17 @@ Render.run(render);
 const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 2);
 skeleton.update();
 
+// const faceRenderer = new FaceRenderer(skeleton);
+
+const spriteUrl = new URL('./assets/marionette_sprite_template.png', import.meta.url).href;
+const renderer = new CharacterRenderer(spriteUrl, skeleton);
+await renderer.load();
+
 Events.on(render, 'afterRender', () => {
     const ctx = render.context;
     skeleton.drawBones(ctx);
+    renderer.draw(ctx);
+    // faceRenderer.draw(ctx);
 });
 
 // IK chains
@@ -90,11 +102,7 @@ const boneStyle = {
     lineWidth: 2,
     visible: false,
 };
-const makeBone = (width, height) => {
-    const boneBody = Bodies.rectangle(0, 0, width, height, { render: boneStyle });
-    Body.setCentre(boneBody, { x: 0, y: -height / 2 }, true);
-    return boneBody;
-};
+const makeBone = (width, height) => Bodies.rectangle(0, 0, width, height, { render: boneStyle });
 
 const bodyMap = {
     Spine: makeBone(30, 40),
@@ -120,8 +128,6 @@ const bodyMap = {
 }
 skeleton.attachBodies(bodyMap);
 
-// const cloth = new Cloth(300, 200, 10, 5, 5, 20, 0, 10, 2, 2)
-// Composite.add(world, [anchorBody, ...Object.values(bodyMap), cloth]);
 Composite.add(world, [anchorBody, ...Object.values(bodyMap)]);
 
 // Secondary body 
@@ -169,19 +175,45 @@ secondBody.addClothingChain('Chest', 3, 16, {
 secondBody.addClothingChain('Chest', 6, 20, {
     columns:     10,
     width:       16,
-    mass:        10,
-    frictionAir: 10,
+    mass:        1,
+    frictionAir: 1,
     stiffness:   0.45,
     spreadFactor: 0.9,
     color:       'rgba(197, 25, 25, 0.16)',
     strokeColor: 'rgba(222, 26, 26, 0.35)',
-    mask:        1,     // collisionFilter
+    mask:        0,     // collisionFilter
     attachBones: [
         { boneName: 'L_Hip', attachAt: 'tail' },
         { boneName: 'Chest', attachAt: 'head', offset: { x: 0, y: 12 } },
         { boneName: 'R_Hip', attachAt: 'tail' },
     ],
 });
+
+// Pose system
+const poses = new PoseManager(skeleton, ikSolver, {
+    duration:  1.2,     // Tween duration in seconds
+    ease:      'power2.inOut',  // GSAP ease string
+    pingPong:  true,    // if true, plays A→B then B→A
+    holdTime:  0.3,     // Pause at each end (seconds) when pingPong
+});
+ 
+// Stop playback if the user starts dragging
+const _origOnDown = input._onDown.bind(input);
+input._onDown = function(e) {
+    poses.onUserDrag();
+    _origOnDown(e);
+};
+ 
+// Proportion controller
+const proportions = new ProportionController(skeleton);
+ 
+// UI
+const ui = new UIController({
+    poseManager:          poses,
+    proportionController: proportions,
+    inputHandler:         input,
+});
+ui.mount();    // injects panel into document.body
 
 // runner - engine update loop
 const runner = Runner.create();
@@ -193,6 +225,8 @@ function loop() {
     skeleton.update();
     skeleton.syncBodiesToBones(); // FK drives Matter.js bodies
     secondBody.update();
+    // faceRenderer.update();
+    ui.update();
     requestAnimationFrame(loop);
 }
 
