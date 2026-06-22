@@ -3,7 +3,6 @@ import { IKSolver } from "./IKSolver.js";
 import { InputHandler } from "./inputHandler.js";
 import { Cloth } from "./body/cloth.js";
 import { SecondBodyLayer } from "./secondBody.js";
-// import { FaceRenderer } from "./FaceRenderer.js";
 import { CharacterRenderer } from "./characterRenderer.js";
 import { PoseManager } from "./PoseManager.js";
 import { ProportionController } from "./ProportionController.js";
@@ -41,17 +40,14 @@ Render.run(render);
 const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 2);
 skeleton.update();
 
-// const faceRenderer = new FaceRenderer(skeleton);
+// const spriteUrl = new URL('./assets/marionette_sprite_template.png', import.meta.url).href;
+// const renderer = new CharacterRenderer(spriteUrl, skeleton);
+// await renderer.load();
 
-const spriteUrl = new URL('./assets/marionette_sprite_template.png', import.meta.url).href;
-const renderer = new CharacterRenderer(spriteUrl, skeleton);
-await renderer.load();
+const renderer = new CharacterRenderer(skeleton);
 
 Events.on(render, 'afterRender', () => {
-    const ctx = render.context;
-    skeleton.drawBones(ctx);
-    renderer.draw(ctx);
-    // faceRenderer.draw(ctx);
+    renderer.draw(render.context);
 });
 
 // IK chains
@@ -97,9 +93,6 @@ const anchorBody = Bodies.circle(skeleton.rootX,skeleton.rootY, 4, { // anchorin
 });
 
 const boneStyle = {
-    fillStyle: '#c79c64',
-    strokeStyle: '#5e3b1e',
-    lineWidth: 2,
     visible: false,
 };
 const makeBone = (width, height) => Bodies.rectangle(0, 0, width, height, { render: boneStyle });
@@ -127,7 +120,6 @@ const bodyMap = {
     L_Foot: makeBone(22, 20),
 }
 skeleton.attachBodies(bodyMap);
-
 Composite.add(world, [anchorBody, ...Object.values(bodyMap)]);
 
 // Secondary body 
@@ -225,7 +217,7 @@ function loop() {
     skeleton.update();
     skeleton.syncBodiesToBones(); // FK drives Matter.js bodies
     secondBody.update();
-    // faceRenderer.update();
+    renderer.update();
     ui.update();
     requestAnimationFrame(loop);
 }
