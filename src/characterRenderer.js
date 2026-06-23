@@ -7,31 +7,12 @@
  * No sprite sheet required. Every body part is drawn using Canvas 2D
  * primitives (paths, arcs, bezier curves) transformed to match each
  * bone's world position and angle.
- *
- * Character design (based on provided artwork):
- *   - Warm peach skin
- *   - Voluminous curly golden-blonde hair with braided crown
- *   - Orange-yellow outfit (top + shorts) with brown diagonal sash
- *   - Small white gloves / cuffs
- *   - Dark brown boots
- *   - Large expressive rosy-pink eyes
- *
- * USAGE:
- *   import { CharacterRenderer } from './CharacterRenderer.js';
- *
- *   const renderer = new CharacterRenderer(skeleton);
- *
- *   // In your afterRender / loop (replaces skeleton.drawBones):
- *   renderer.update();   // tracks velocity + stretch for expressions
- *   renderer.draw(ctx);  // renders full character
- *
  */
 export class CharacterRenderer {
     constructor(skeleton) {
         this.skeleton = skeleton;
-        this.debug    = false;
 
-        // ── Palette ──────────────────────────────────────────────────────────
+        // palette
         this.c = {
             skin:        '#F5C9A0',
             skinDark:    '#E8A87C',
@@ -42,8 +23,6 @@ export class CharacterRenderer {
             outfit:      '#E8920A',
             outfitDark:  '#C47808',
             outfitLight: '#F5A830',
-            sash:        '#6B3A1F',
-            sashLight:   '#8B5A3A',
             boot:        '#3D2010',
             bootDark:    '#2A1508',
             bootLight:   '#5A3020',
@@ -60,21 +39,16 @@ export class CharacterRenderer {
             outline:     'rgba(60,30,10,0.5)',
             outlineHard: 'rgba(60,30,10,0.8)',
         };
-
-        // ── Expression tracking ───────────────────────────────────────────────
         this._prevHeadPos   = null;
         this._smoothVel     = 0;
         this._stretchRatio  = 0;
         this.MAX_VELOCITY   = 18;
         this.VELOCITY_DECAY = 0.85;
     }
-    /** Call once per frame before draw() to update expression signals. */
     update() {
         this._updateVelocity();
         this._updateStretch();
     }
-
-    /** Call once per frame to render the full character. */
     draw(ctx) {
         const velocityT = Math.min(this._smoothVel / this.MAX_VELOCITY, 1);
         const stretchT  = this._stretchRatio;
@@ -85,38 +59,30 @@ export class CharacterRenderer {
         /**
          * DRAW ORDER — back to front:
          *
-         *  1. Left leg      (behind torso)
-         *  2. Left arm      (behind torso)
-         *  3. Torso         (chest + shorts + sash)
-         *  4. Right leg     (in front of torso)
-         *  5. Right arm     (in front of torso)
-         *  6. Head / face   (on top of everything)
-         *  7. Hair          (drawn last so it overlaps the head)
+         *  1. Hair
+         *  2. Left leg      
+         *  3. Left arm      
+         *  4. Right leg     
+         *  5. Right arm     
+         *  6. Torso         (chest + shorts + sash)
+         *  7. Head / face   (on top of everything)
          *
          * Left-side limbs are drawn at slightly reduced opacity (0.82)
          * to suggest depth without a full shadow pass.
-         */
+        */
+        this._drawHair(ctx, velocityT);
         this._drawLeg(ctx, 'L_UpperLeg', 'L_Shin', 'L_Foot', true);
         this._drawArm(ctx, 'L_UpperArm', 'L_Forearm', 'L_Hand', true);
-        this._drawTorso(ctx);
         this._drawLeg(ctx, 'R_UpperLeg', 'R_Shin', 'R_Foot', false);
         this._drawArm(ctx, 'R_UpperArm', 'R_Forearm', 'R_Hand', false);
+        this._drawTorso(ctx);
         this._drawHead(ctx, velocityT, stretchT);
-        this._drawHair(ctx, velocityT);
 
         if (this.debug) this.skeleton.drawBones(ctx);
 
         ctx.restore();
     }
-    // ─── Body parts ───────────────────────────────────────────────────────────
-    /**
-     * TORSO
-     * Draws chest + spine as a trapezoid (wider at chest, narrower at hip),
-     * then overlays the diagonal sash and the shorts rectangle at the hip.
-     *
-     * The trapezoid is built from the chest bone's world position (top)
-     * down to the hip bone's tail (bottom). Width is derived from chest.length.
-     */
+    // body parts
     _drawTorso(ctx) {
         const chest = this._bone('Chest');
         const hip   = this._bone('Hip');
@@ -133,10 +99,10 @@ export class CharacterRenderer {
         const perpX =  Math.cos(angle) * tw * 0.5;
         const perpY = -Math.sin(angle) * tw * 0.5;
 
-        const chestL = { x: cx - perpX,        y: cy - perpY        };
-        const chestR = { x: cx + perpX,        y: cy + perpY        };
-        const hipL   = { x: hx - perpX * 0.7,  y: hy - perpY * 0.7 };
-        const hipR   = { x: hx + perpX * 0.7,  y: hy + perpY * 0.7 };
+        const chestL = { x: cx - perpX, y: cy - perpY };
+        const chestR = { x: cx + perpX, y: cy + perpY };
+        const hipL   = { x: hx.x - perpX * 0.7,  y: hy.y - perpY * 0.7 };
+        const hipR   = { x: hx.x + perpX * 0.7,  y: hy.y + perpY * 0.7 };
 
         // Main torso fill
         ctx.beginPath();
@@ -164,23 +130,9 @@ export class CharacterRenderer {
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Diagonal sash (runs from top-left of chest to bottom-right of hip)
-        const sashW = tw * 0.18;
-        ctx.beginPath();
-        ctx.moveTo(chestL.x + perpX * 0.3 - sashW, chestL.y + perpY * 0.3);
-        ctx.lineTo(chestL.x + perpX * 0.3 + sashW, chestL.y + perpY * 0.3 + sashW * 0.5);
-        ctx.lineTo(hx + perpX * 0.2 + sashW,        hy + perpY * 0.2);
-        ctx.lineTo(hx + perpX * 0.2 - sashW,        hy + perpY * 0.2 - sashW * 0.5);
-        ctx.closePath();
-        ctx.fillStyle = this.c.sash;
-        ctx.fill();
-        ctx.strokeStyle = this.c.sashLight;
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-
         // Shorts / hip area block
         const shortH = hip.length * 1.1;
-        const shortW = tw * 0.95;
+        const shortW = tw * 1.2;
         ctx.save();
         ctx.translate(hx, hy);
         ctx.rotate(hip.worldAngle);
@@ -193,14 +145,6 @@ export class CharacterRenderer {
         ctx.stroke();
         ctx.restore();
     }
-    /**
-     * ARM
-     * Upper arm and forearm are drawn as rounded pill shapes (_drawLimb).
-     * A glove cuff ellipse sits at the wrist joint.
-     * Hand is a shorter pill in glove color with a rounded tip.
-     *
-     * isLeft = true draws at reduced opacity (0.82) to suggest depth.
-     */
     _drawArm(ctx, upperName, forearmName, handName, isLeft) {
         const upper   = this._bone(upperName);
         const forearm = this._bone(forearmName);
@@ -235,14 +179,6 @@ export class CharacterRenderer {
 
         ctx.globalAlpha = 1.0;
     }
-    /**
-     * LEG
-     * Upper leg = skin-colored pill.
-     * Shin = dark brown boot pill, with a lighter cuff ellipse at the knee.
-     * Foot = boot rectangle with rounded toe cap and a highlight ellipse.
-     *
-     * isLeft = true draws at reduced opacity (0.80).
-     */
     _drawLeg(ctx, upperName, shinName, footName, isLeft) {
         const upper = this._bone(upperName);
         const shin  = this._bone(shinName);
@@ -290,16 +226,6 @@ export class CharacterRenderer {
         ctx.restore();
         ctx.globalAlpha = 1.0;
     }
-    /**
-     * HEAD
-     * Drawn centered on head bone's tail position (the tip of the head bone).
-     * Radius is proportional to head.length.
-     * Neck is a small ellipse connecting to the head from below.
-     * Cheek blushes, eyes, brows, nose, and mouth are all drawn in local
-     * space (translated + rotated to head.worldAngle) so they follow the head bone.
-     *
-     * The face subtly squashes/stretches with velocityT (squash-and-stretch principle).
-     */
     _drawHead(ctx, velocityT, stretchT) {
         const neck = this._bone('Neck');
         const head = this._bone('Head');
@@ -359,14 +285,6 @@ export class CharacterRenderer {
 
         ctx.restore();
     }
-    /**
-     * HAIR
-     * Drawn after the head so it overlaps the face at the edges.
-     * Built from layered ellipse blobs (back mass → main curls → highlights → braid crown).
-     * Blob positions are relative to head.tailX/Y and rotate with head.worldAngle.
-     *
-     * velocityT slightly separates the outer blobs for a "flying hair" effect at high speed.
-     */
     _drawHair(ctx, velocityT) {
         const head = this._bone('Head');
         if (!head) return;
@@ -445,14 +363,7 @@ export class CharacterRenderer {
 
         ctx.restore();
     }
-    // ─── Face features ────────────────────────────────────────────────────────
-    /**
-     * EYES
-     * Two ellipse eyes with iris, pupil, highlight, and lash lines.
-     * Height: widens with velocityT (excitement), narrows with stretchT (strain).
-     * Iris shifts slightly upward with velocityT.
-     * Lash line thickens under strain.
-     */
+    // face features 
     _drawEyes(ctx, r, velocityT, stretchT) {
         const eyeX = r * 0.30;
         const eyeY = r * -0.08;
@@ -507,11 +418,6 @@ export class CharacterRenderer {
             ctx.stroke();
         }
     }
-    /**
-     * BROWS
-     * Short curved strokes above each eye.
-     * Rise with velocityT (surprise), furrow inward + downward with stretchT (effort).
-     */
     _drawBrows(ctx, r, velocityT, stretchT) {
         const browBaseY  = r * -0.34;
         const browRaise  = velocityT * r * 0.09;
@@ -535,19 +441,12 @@ export class CharacterRenderer {
             ctx.stroke();
         }
     }
-    /** NOSE — small skin-shade ellipse, no expression variation. */
     _drawNose(ctx, r) {
         ctx.beginPath();
         ctx.ellipse(0, r * 0.12, r * 0.07, r * 0.05, 0, 0, Math.PI * 2);
         ctx.fillStyle = this.c.skinShade;
         ctx.fill();
     }
-    /**
-     * MOUTH
-     * Resting: gentle upward smile curve.
-     * High velocity: slight open (ellipse fill + upper lip arc).
-     * High stretch: mouth flattens into tense line, smile curve disappears.
-     */
     _drawMouth(ctx, r, velocityT, stretchT) {
         const mouthY = r * 0.30;
         const mouthW = r * 0.36;
@@ -588,14 +487,7 @@ export class CharacterRenderer {
         ctx.fillStyle = 'rgba(255,220,220,0.4)';
         ctx.fill();
     }
-    // ─── Limb primitive ───────────────────────────────────────────────────────
-    /**
-     * Draws a rounded pill shape along a bone's length.
-     *
-     * The pill is centered on the bone axis with halfWidth on each side.
-     * End caps are semicircles at bone.worldX/worldY (head) and bone.tailX/tailY (tail).
-     * A linear gradient across the width gives a subtle cylindrical shading.
-     */
+    // limb primitive - Draws a rounded pill shape centered on bone axis with halfWidth on each side
     _drawLimb(ctx, bone, halfWidth, fillColor, shadeColor) {
         const angle  = bone.worldAngle;
         // Perpendicular direction (rotate angle by 90°)

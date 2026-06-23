@@ -4,13 +4,14 @@ import { InputHandler } from "./inputHandler.js";
 import { Cloth } from "./body/cloth.js";
 import { SecondBodyLayer } from "./secondBody.js";
 import { CharacterRenderer } from "./characterRenderer.js";
+import { ImageCharacterRenderer } from "./imageCharacterRenderer.js";
+import { PartUploader } from "./partUploader.js";
 import { PoseManager } from "./PoseManager.js";
 import { ProportionController } from "./ProportionController.js";
 import { UIController } from "./UIController.js";
 
 /** TODO 
- *  -> Add shapes for marionette
- *  -> Facial expressions
+ * 
  * UI TODO
  * -> Zoom
  * */ 
@@ -40,14 +41,20 @@ Render.run(render);
 const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 2);
 skeleton.update();
 
-// const spriteUrl = new URL('./assets/marionette_sprite_template.png', import.meta.url).href;
-// const renderer = new CharacterRenderer(spriteUrl, skeleton);
-// await renderer.load();
-
-const renderer = new CharacterRenderer(skeleton);
-
+const proceduralRenderer = new CharacterRenderer(skeleton);
+proceduralRenderer.debug = true;
+ 
+// SecondBodyLayer is created before ImageCharacterRenderer so it can be passed in
+const secondBody = new SecondBodyLayer(world, skeleton, engine);
+ 
+const imageRenderer = new ImageCharacterRenderer(skeleton, secondBody, {
+    globalScale: 1.0,
+});
+ 
+let activeRenderer = proceduralRenderer;  // start with procedural default
+ 
 Events.on(render, 'afterRender', () => {
-    renderer.draw(render.context);
+    activeRenderer.draw(render.context);
 });
 
 // IK chains
@@ -92,9 +99,7 @@ const anchorBody = Bodies.circle(skeleton.rootX,skeleton.rootY, 4, { // anchorin
     collisionFilter: { mask: 0}
 });
 
-const boneStyle = {
-    visible: false,
-};
+const boneStyle = { visible: false };
 const makeBone = (width, height) => Bodies.rectangle(0, 0, width, height, { render: boneStyle });
 
 const bodyMap = {
@@ -123,8 +128,6 @@ skeleton.attachBodies(bodyMap);
 Composite.add(world, [anchorBody, ...Object.values(bodyMap)]);
 
 // Secondary body 
-const secondBody = new SecondBodyLayer(world, skeleton, engine);
- 
 // hair
 secondBody.addHairStrand('Head', 10, 10, {
     radius:      4,
@@ -181,6 +184,22 @@ secondBody.addClothingChain('Chest', 6, 20, {
     ],
 });
 
+// ── Part uploader ─────────────────────────────────────────────────────────────
+const uploader = new PartUploader({
+    renderer: imageRenderer,
+ 
+    // Called when the first part is uploaded — swap to image renderer
+    onCharacterLoad: () => {
+        activeRenderer = imageRenderer;
+    },
+ 
+    // Called when all parts are cleared — swap back to procedural
+    onCharacterClear: () => {
+        activeRenderer = proceduralRenderer;
+    },
+});
+uploader.mount();
+
 // Pose system
 const poses = new PoseManager(skeleton, ikSolver, {
     duration:  1.2,     // Tween duration in seconds
@@ -217,7 +236,11 @@ function loop() {
     skeleton.update();
     skeleton.syncBodiesToBones(); // FK drives Matter.js bodies
     secondBody.update();
-    renderer.update();
+    
+    if (activeRenderer === proceduralRenderer) {
+        proceduralRenderer.update();
+    }
+
     ui.update();
     requestAnimationFrame(loop);
 }
