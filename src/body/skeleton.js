@@ -85,39 +85,21 @@ export class Skeleton {
         this.bones[bone.name] = bone;
         return bone;
     }
-    attachBodies(map) { // add matter.js bodies to list
-        this.bodyMap = map;
-    }
-    syncBodiesToBones() { // FK calculations and updates
-        for (const [boneName, body] of Object.entries(this.bodyMap)) {
-            const bone = this.bones[boneName];
-            if (!bone) continue;
-            const tailX = bone.tailX;
-            const tailY = bone.tailY;
-            const midX = (bone.worldX + tailX) * 0.5;
-            const midY = (bone.worldY + tailY) * 0.5;
- 
-            
-            const boneAngle = Math.atan2(tailX - bone.worldX, tailY - bone.worldY);
-            Matter.Body.setPosition(body, { x: midX, y: midY });
-            Matter.Body.setAngle(body, boneAngle);
-        }
-    }
-    update() {
-        this._updateSubtree(this.root, this.rootX, this.rootY, 0);
-    }
     _updateSubtree(bone, parentTailX, parentTailY, parentWorldAngle) {
         bone.worldAngle = parentWorldAngle + bone.localAngle;
         bone.worldX = parentTailX;
         bone.worldY = parentTailY;
         bone.updateVelocity(0.8);   // lower = snappier response
-
+        
         const tailX = bone.tailX;
         const tailY = bone.tailY;
- 
+        
         for (const child of bone.children) {
             this._updateSubtree(child, tailX, tailY, bone.worldAngle);
         }
+    }
+    update() {
+        this._updateSubtree(this.root, this.rootX, this.rootY, 0);
     }
     getBone(name) {
         const bone = this.bones[name];
