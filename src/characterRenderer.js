@@ -41,8 +41,8 @@ export class CharacterRenderer {
         // DRAW ORDER — back to front: Hair, Left leg, Left arm, Right leg, Right arm, Torso, Head / face
         // this._drawHair(ctx, velocityT);
         this._drawLeg(ctx, 'L_UpperLeg', 'L_Shin', 'L_Foot', true);
-        this._drawTorso(ctx);
         this._drawArm(ctx, 'L_UpperArm', 'L_Forearm', 'L_Hand', true);
+        this._drawTorso(ctx);
         this._drawLeg(ctx, 'R_UpperLeg', 'R_Shin', 'R_Foot', false);
         this._drawArm(ctx, 'R_UpperArm', 'R_Forearm', 'R_Hand', false);
         this._drawHead(ctx, velocityT, stretchT);
@@ -59,6 +59,24 @@ export class CharacterRenderer {
         if (!chest || !spine || !hip) return;
 
         // ── Chest block ──
+        // Top of torso = chest bone world pos (its head = where spine ends)
+        // Bottom of torso = hip bone world pos (spine tail = hip head)
+        const topX = chest.worldX;
+        const topY = chest.worldY;
+        const botX = hip.worldX;     // spine.tailX = hip.worldX
+        const botY = hip.worldY;
+ 
+        // Direction from top → bottom (world space)
+        const dx = botX - topX;
+        const dy = botY - topY;
+        const len = Math.hypot(dx, dy) || 1;
+        const ux  = dx / len;
+        const uy  = dy / len;
+ 
+        // Perpendicular (90° clockwise)
+        const px =  uy;
+        const py = -ux;
+
         // Width derived from shoulder spread
         const rShoulder = this._bone('R_Shoulder');
         const lShoulder = this._bone('L_Shoulder');
@@ -67,42 +85,85 @@ export class CharacterRenderer {
                 rShoulder.worldX - lShoulder.worldX,
                 rShoulder.worldY - lShoulder.worldY
               ) * 0.82
-            : chest.length * 1.1
+            : chest.length * 1.1    // or 28?
         ;
         
         // Draw chest + spine as one tall block
-        const topX = chest.worldX;
-        const topY = chest.worldY;
-        const botX = spine.tailX;
-        const botY = spine.tailY;
+        const TL = { x: topX - px * chestW,       y: topY - py * chestW       };
+        const TR = { x: topX + px * chestW,       y: topY + py * chestW       };
+        const BR = { x: botX + px * chestW * 0.9, y: botY + py * chestW * 0.9 };
+        const BL = { x: botX - px * chestW * 0.9, y: botY - py * chestW * 0.9 };
 
-        ctx.save();
-        ctx.translate(topX, topY);
-        ctx.rotate(chest.worldAngle);
- 
-        const totalH = chest.length + spine.length;
         ctx.beginPath();
-        ctx.roundRect(-chestW / 2, 0, chestW, totalH, [4, 4, 2, 2]);
+        ctx.moveTo(TL.x, TL.y);
+        ctx.lineTo(TR.x, TR.y);
+        ctx.lineTo(BR.x, BR.y);
+        ctx.lineTo(BL.x, BL.y);
+        ctx.closePath();
         ctx.fillStyle   = this.c.torso;
         ctx.fill();
         ctx.strokeStyle = this.c.outline;
         ctx.lineWidth   = 1;
         ctx.stroke();
-        ctx.restore();
+        // ctx.save();
+        // ctx.translate(topX, topY);
+        // ctx.rotate(chest.worldAngle);
+ 
+        // const totalH = chest.length + spine.length;
+        // ctx.beginPath();
+        // ctx.roundRect(-chestW / 2, 0, chestW, totalH, [4, 4, 2, 2]);
+        // ctx.fillStyle   = this.c.torso;
+        // ctx.fill();
+        // ctx.strokeStyle = this.c.outline;
+        // ctx.lineWidth   = 1;
+        // ctx.stroke();
+        // ctx.restore();
  
         // ── Hip / shorts block ──
-        const hipW = chestW * 0.88;
-        ctx.save();
-        ctx.translate(hip.worldX, hip.worldY);
-        ctx.rotate(hip.worldAngle);
+        // const hipW = chestW * 0.88;
+        // ctx.save();
+        // ctx.translate(hip.worldX, hip.worldY);
+        // ctx.rotate(hip.worldAngle);
+        // ctx.beginPath();
+        // ctx.roundRect(-hipW / 2, 0, hipW, hip.length * 1.4, [0, 0, 4, 4]);
+        // ctx.fillStyle   = this.c.hip;
+        // ctx.fill();
+        // ctx.strokeStyle = this.c.outline;
+        // ctx.lineWidth   = 1;
+        // ctx.stroke();
+        // ctx.restore();
+        
+        // World-space quad from hip head → hip tail
+        const hipTopX = hip.worldX;
+        const hipTopY = hip.worldY;
+        const hipBotX = hip.tailX;
+        const hipBotY = hip.tailY;
+ 
+        const hdx = hipBotX - hipTopX;
+        const hdy = hipBotY - hipTopY;
+        const hlen = Math.hypot(hdx, hdy) || 1;
+        const hux  = hdx / hlen;
+        const huy  = hdy / hlen;
+        const hpx  =  huy;
+        const hpy  = -hux;
+ 
+        const hipHW = chestW * 0.88;
+        const HTL = { x: hipTopX - hpx * hipHW, y: hipTopY - hpy * hipHW };
+        const HTR = { x: hipTopX + hpx * hipHW, y: hipTopY + hpy * hipHW };
+        const HBR = { x: hipBotX + hpx * hipHW * 0.85, y: hipBotY + hpy * hipHW * 0.85 };
+        const HBL = { x: hipBotX - hpx * hipHW * 0.85, y: hipBotY - hpy * hipHW * 0.85 };
+ 
         ctx.beginPath();
-        ctx.roundRect(-hipW / 2, 0, hipW, hip.length * 1.4, [0, 0, 4, 4]);
+        ctx.moveTo(HTL.x, HTL.y);
+        ctx.lineTo(HTR.x, HTR.y);
+        ctx.lineTo(HBR.x, HBR.y);
+        ctx.lineTo(HBL.x, HBL.y);
+        ctx.closePath();
         ctx.fillStyle   = this.c.hip;
         ctx.fill();
         ctx.strokeStyle = this.c.outline;
         ctx.lineWidth   = 1;
         ctx.stroke();
-        ctx.restore();
     }
     _drawArm(ctx, upperName, forearmName, handName, isLeft) {
         const upper   = this._bone(upperName);
@@ -110,8 +171,8 @@ export class CharacterRenderer {
         const hand    = this._bone(handName);
         if (!upper || !forearm || !hand) return;
 
-        this._drawLimb(ctx, upper,   upper.length   * 0.36, this.c.skin,  this.c.skinDark);
-        this._drawLimb(ctx, forearm, forearm.length * 0.30, this.c.skin,  this.c.skinDark);
+        this._drawLimb(ctx, upper,   upper.length   * 0.36, this.c.skin);
+        this._drawLimb(ctx, forearm, forearm.length * 0.30, this.c.skin);
         this._drawHand(ctx, hand);
 
         ctx.globalAlpha = 1.0;
@@ -140,8 +201,8 @@ export class CharacterRenderer {
         const foot  = this._bone(footName);
         if (!upper || !shin || !foot) return;
 
-        this._drawLimb(ctx, upper, upper.length * 0.34, this.c.skin, this.c.skinDark);
-        this._drawLimb(ctx, shin,  shin.length  * 0.30, this.c.boot, this.c.bootDark);
+        this._drawLimb(ctx, upper, upper.length * 0.34, this.c.skin);
+        this._drawLimb(ctx, shin,  shin.length  * 0.30, this.c.boot);
         this._drawFoot(ctx, foot, isLeft);
 
         ctx.globalAlpha = 1.0;
@@ -152,7 +213,7 @@ export class CharacterRenderer {
         ctx.rotate(foot.worldAngle);
  
         // Ankle connector
-        this._drawLimb(ctx, foot, foot.length * 0.28, this.c.skin, this.c.skinDark);
+        this._drawLimb(ctx, foot, foot.length * 0.28, this.c.skin);
  
         // Boot sole — flat rounded rectangle extending forward
         const bw = foot.length * 1.2;
@@ -177,7 +238,7 @@ export class CharacterRenderer {
         const r  = head.length * 0.60;
 
         if (neck) {
-            this._drawLimb(ctx, neck, neck.length * 0.28, this.c.skin, this.c.skinDark);
+            this._drawLimb(ctx, neck, neck.length * 0.28, this.c.skin);
         }
 
         ctx.save();
@@ -226,38 +287,69 @@ export class CharacterRenderer {
         ctx.restore();
     }
     // limb primitive - Draws a rounded pill shape along a bone
-    _drawLimb(ctx, bone, halfWidth, fillColor, shadeColor) {
-        if (bone.length === 0) return;
+    _drawLimb(ctx, bone, halfWidth, fillColor) {
+        // if (bone.length === 0) return;
 
-        // direction vector along bone (head to tail)
-        const dx = bone.tailX - bone.worldX;
-        const dy = bone.tailY - bone.worldY;
-        const len = Math.hypot(dx, dy) || 1;
-        const ux = dx / len; // unit vector along bone
-        const uy = dy / len;
-        const px = -uy;
-        const py = ux;
+        // // direction vector along bone (head to tail)
+        // const dx = bone.tailX - bone.worldX;
+        // const dy = bone.tailY - bone.worldY;
+        // const len = Math.hypot(dx, dy) || 1;
+        // const ux = dx / len; // unit vector along bone
+        // const uy = dy / len;
+        // const px = -uy;
+        // const py = ux;
 
-        const x0 = bone.worldX;
-        const y0 = bone.worldY;
-        const x1 = bone.tailX;
-        const y1 = bone.tailY;
+        // const x0 = bone.worldX;
+        // const y0 = bone.worldY;
+        // const x1 = bone.tailX;
+        // const y1 = bone.tailY;
 
-        const boneAngle = Math.atan2(dy, dx);
+        // const boneAngle = Math.atan2(dy, dx);
 
+        // ctx.beginPath();
+        // ctx.moveTo(x0 - px * halfWidth, y0 - py * halfWidth);
+        // ctx.lineTo(x1 - px * halfWidth, y1 - py * halfWidth);
+        // ctx.arc(x1, y1, halfWidth, boneAngle + Math.PI, boneAngle, true);
+        // ctx.lineTo(x0 + px * halfWidth, y0 + py * halfWidth);
+        // ctx.arc(x0, y0, halfWidth, boneAngle, boneAngle + Math.PI, true);
+        // ctx.closePath();
+
+        // // Flat fill
+        // ctx.fillStyle = fillColor;
+        // ctx.fill();
+        // ctx.strokeStyle = this.c.outline;
+        // ctx.lineWidth = 0.8;
+        // ctx.stroke();
+        const a   = bone.worldAngle;
+        // Right-perpendicular to bone direction
+        const px  =  Math.cos(a) * halfWidth;
+        const py  = -Math.sin(a) * halfWidth;
+ 
+        const x0  = bone.worldX,  y0 = bone.worldY;   // bone head
+        const x1  = bone.tailX,   y1 = bone.tailY;    // bone tail
+ 
+        // startAngle for the tail cap: angle pointing LEFT of bone = a + π/2
+        // We draw clockwise, so tail cap goes from (a + π/2) to (a - π/2)
+        // which sweeps the half-circle on the tail end (rightward in world space)
+        // Note: Canvas clockwise = increasing angle, so anticlockwise=false
+ 
         ctx.beginPath();
-        ctx.moveTo(x0 - px * halfWidth, y0 - py * halfWidth);
-        ctx.lineTo(x1 - px * halfWidth, y1 - py * halfWidth);
-        ctx.arc(x1, y1, halfWidth, boneAngle + Math.PI, boneAngle, true);
-        ctx.lineTo(x0 + px * halfWidth, y0 + py * halfWidth);
-        ctx.arc(x0, y0, halfWidth, boneAngle, boneAngle + Math.PI, true);
+        // Start: left side of bone head
+        ctx.moveTo(x0 - px, y0 - py);
+        // Left side down to tail
+        ctx.lineTo(x1 - px, y1 - py);
+        // Tail semicircle: left-of-tail → right-of-tail (clockwise)
+        ctx.arc(x1, y1, halfWidth, a + Math.PI * 0.5, a - Math.PI * 0.5, false);
+        // Right side back up to head
+        ctx.lineTo(x0 + px, y0 + py);
+        // Head semicircle: right-of-head → left-of-head (clockwise)
+        ctx.arc(x0, y0, halfWidth, a - Math.PI * 0.5, a + Math.PI * 0.5, false);
         ctx.closePath();
-
-        // Flat fill
-        ctx.fillStyle = fillColor;
+ 
+        ctx.fillStyle   = fillColor;
         ctx.fill();
         ctx.strokeStyle = this.c.outline;
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth   = 0.8;
         ctx.stroke();
     }
     _updateVelocity() {

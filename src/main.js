@@ -2,22 +2,19 @@ import { Skeleton } from "./body/skeleton.js";
 import { IKSolver } from "./IKSolver.js";
 import { InputHandler } from "./inputHandler.js";
 import { SecondBodyLayer } from "./secondBody.js";
-import { CharacterRenderer } from "./characterRenderer.js";
-import { ImageCharacterRenderer } from "./imageCharacterRenderer.js";
 import { PartUploader } from "./UI/partUploader.js";
 import { PoseManager } from "./UI/poseManager.js";
 import { ProportionController } from "./UI/proportionController.js";
 import { UIController } from "./UI/uiController.js";
-import { Marionette } from "./marionette.js";
+import { RendererManager } from "./renderManager.js";
 
 const { Engine, Render, Runner, Events } = Matter;
-    
-// engine - world (collection of bodies) simulation updates
+// Engine - world (collection of bodies) simulation updates
 const engine = Engine.create();
 const world = engine.world;
 engine.gravity.y = 1.0;
 
-// render - visual representation of the world as <canvas>
+// Render - visual representation of the world as <canvas>
 const render = Render.create({ 
     element: document.body, 
     engine: engine,
@@ -31,25 +28,79 @@ const render = Render.create({
 });
 Render.run(render);
 
-// Creating the puppet's skeleton 
+// Creating the skeleton 
 const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 2);
 skeleton.update();
 
-const proceduralRenderer = new CharacterRenderer(skeleton);
-proceduralRenderer.debug = true;
-
-// SecondBodyLayer is created before ImageCharacterRenderer so it can be passed in
+// Secondary bodies
 const secondBody = new SecondBodyLayer(world, skeleton, engine);
- 
-const imageRenderer = new ImageCharacterRenderer(skeleton, secondBody, {
-    globalScale: 1.0,
+// hair
+secondBody.addHairStrand('Head', 10, 10, {
+    radius:      4,
+    mass:        0.2,
+    frictionAir: 0.10,
+    stiffness:   0.5,
+    color:       '#7af4eb',
+    attachAt:    'tail',
 });
- 
-let activeRenderer = proceduralRenderer;  // start with procedural default
+// secondBody.addHairStrand('Head', 4, 13, {
+//     radius:      3,
+//     mass:        0.12,  // lower = floatier, higher = heavier swing
+//     frictionAir: 0.09,  // damping: higher = less swing, lower = more
+//     stiffness:   0.45,  // constraint stiffness: higher = less stretch
+//     color:       '#4a3020',
+//     attachAt:    'tail',
+// });
+// secondBody.addClothingChain('Chest', 3, 16, {
+//     columns:     25,
+//     width:       14,
+//     mass:        0.6,
+//     frictionAir: 0.05,
+//     stiffness:   0.03,
+//     spreadFactor:0.9,
+//     color:       'rgba(197, 25, 25, 0.16)',
+//     strokeColor: 'rgba(222, 26, 26, 0.35)',
+//     mask:        0,     // collisionFilter
+//     attachBones: [
+//         { boneName: 'L_Shoulder', attachAt: 'tail' },
+//         { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 12 } },
+//         { boneName: 'R_Shoulder', attachAt: 'tail' },
+//     ],
+// });
+// secondBody.addClothingChain('Chest', 6, 20, {
+//     columns:     10,
+//     width:       16,
+//     mass:        1,
+//     frictionAir: 1,
+//     stiffness:   0.45,
+//     spreadFactor: 0.9,
+//     color:       'rgba(197, 25, 25, 0.16)',
+//     strokeColor: 'rgba(222, 26, 26, 0.35)',
+//     mask:        0,     // collisionFilter
+//     attachBones: [
+//         { boneName: 'L_Hip', attachAt: 'tail' },
+//         { boneName: 'Chest', attachAt: 'head', offset: { x: 0, y: 12 } },
+//         { boneName: 'R_Hip', attachAt: 'tail' },
+//     ],
+// });
+
+// Render Managements
+const svg    = document.getElementById('character-svg');
+const rManager = new RendererManager(skeleton, secondBody, svg);
+rManager.init();
+rManager.setMode('svg');
  
 Events.on(render, 'afterRender', () => {
-    activeRenderer.draw(render.context);
+    rManager.draw(render.context);
 });
+
+// Part uploader
+const uploader = new PartUploader({
+    renderer:         rManager.imageRenderer,
+    onCharacterLoad:  () => rManager.setMode('image'),  // uploaded Image
+    onCharacterClear: () => rManager.setMode('svg'),   // default marionette
+});
+uploader.mount();
 
 // IK chains
 const ikSolver = new IKSolver(skeleton);
@@ -90,75 +141,6 @@ Object.entries({
     input.setEffector(bone, target);
 });
 
-// Secondary bodies
-// hair
-secondBody.addHairStrand('Head', 10, 10, {
-    radius:      4,
-    mass:        0.2,
-    frictionAir: 0.10,
-    stiffness:   0.5,
-    color:       '#7af4eb',
-    attachAt:    'tail',
-});
- 
-// // hair volume
-// secondBody.addHairStrand('Head', 4, 13, {
-//     radius:      3,
-//     mass:        0.12,  // lower = floatier, higher = heavier swing
-//     frictionAir: 0.09,  // damping: higher = less swing, lower = more
-//     stiffness:   0.45,  // constraint stiffness: higher = less stretch
-//     color:       '#4a3020',
-//     attachAt:    'tail',
-// });
- 
-// // clothing - shirt
-// secondBody.addClothingChain('Chest', 3, 16, {
-//     columns:     25,
-//     width:       14,
-//     mass:        0.6,
-//     frictionAir: 0.05,
-//     stiffness:   0.03,
-//     spreadFactor:0.9,
-//     color:       'rgba(197, 25, 25, 0.16)',
-//     strokeColor: 'rgba(222, 26, 26, 0.35)',
-//     mask:        0,     // collisionFilter
-//     attachBones: [
-//         { boneName: 'L_Shoulder', attachAt: 'tail' },
-//         { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 12 } },
-//         { boneName: 'R_Shoulder', attachAt: 'tail' },
-//     ],
-// });
-
-// // clothing - Skirt
-// secondBody.addClothingChain('Chest', 6, 20, {
-//     columns:     10,
-//     width:       16,
-//     mass:        1,
-//     frictionAir: 1,
-//     stiffness:   0.45,
-//     spreadFactor: 0.9,
-//     color:       'rgba(197, 25, 25, 0.16)',
-//     strokeColor: 'rgba(222, 26, 26, 0.35)',
-//     mask:        0,     // collisionFilter
-//     attachBones: [
-//         { boneName: 'L_Hip', attachAt: 'tail' },
-//         { boneName: 'Chest', attachAt: 'head', offset: { x: 0, y: 12 } },
-//         { boneName: 'R_Hip', attachAt: 'tail' },
-//     ],
-// });
-
-// Part uploader
-const uploader = new PartUploader({
-    renderer: imageRenderer,
-    onCharacterLoad: () => {    // uploaded image
-        activeRenderer = imageRenderer;
-    },
-    onCharacterClear: () => {   // default marionette
-        activeRenderer = proceduralRenderer;
-    },
-});
-uploader.mount();
-
 // Pose system
 const poses = new PoseManager(skeleton, ikSolver, {
     duration:  1.2,     // Tween duration in seconds
@@ -195,9 +177,6 @@ function loop() {
     for (const system of systems) {
         system.solve?.();
         system.update?.()
-        if (activeRenderer === proceduralRenderer) {
-            proceduralRenderer.update();
-        }
     }
     requestAnimationFrame(loop);
 }

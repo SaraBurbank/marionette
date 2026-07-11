@@ -3,12 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            position: relative;
+            background: #343131;
+        }
+
+        /* Matter.js canvas — bottom layer */
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 0;
+        }
+
+        /* SVG character — above canvas, below UI */
+        #character-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            overflow: visible;
+        }
+    </style>
     <title>Marionete</title>
 </head>
 <body>
-    <!-- GSAP Version used: gsap@3.15 | Matter.js Version used: matter-js 0.20.0 -->
+    <!-- GSAP Version used: gsap@3.15 | Matter.js Version used: matter-js 0.20.0  -->
     <script src="./lib/gsap.min.js"></script> 
     <script src="./lib/matter.min.js"></script>
     <script src="./src/main.js" type="module"></script>
+    <svg id="character-svg" xmlns="http://www.w3.org/2000/svg">
+        <g id="part-L_UpperLeg" transform="translate(0,0) rotate(0)" opacity="0.75">
+            <g transform="translate(-152, -474)">
+                <path d="M135.967 640.576L153.358 474.225L153.357 474.223C170.499 484.899 191.376 491.072 214.018 491.671L169.553 664.764L135.967 640.576Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-L_Shin" transform="translate(0,0) rotate(0)" opacity="0.75">
+            <g transform="translate(-169, -665)">
+                <path d="M123.374 800.546L131.034 686.02L131.035 686.021L169.084 670.384L169.553 808.427C168.496 807.906 167.444 807.394 166.36 806.913C152.396 800.746 137.579 798.844 123.374 800.546Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-L_Foot" transform="translate(0,0) rotate(0)" opacity="0.75">
+            <g transform="translate(-123, -801)">
+                <path d="M115.897 807.183C118.413 806.995 120.916 806.899 123.372 806.912L123.374 806.913C124.101 806.918 124.818 806.941 125.537 806.964L125.81 806.973C148.502 807.687 167.59 816.65 170.896 829.043C174.673 843.206 156.316 856.087 129.491 858.082C102.666 860.076 78.2714 850.384 74.4923 836.221C70.7151 822.057 89.0722 809.177 115.897 807.183Z"
+                    fill="#1A1A1A"/>
+            </g>
+        </g>
+        <g id="part-L_UpperArm" transform="translate(0,0) rotate(0)" opacity="0.75">
+            <g transform="translate(-139, -167)">
+                <path d="M101.183 285.148L71.7964 286.814L139.966 167.065C147.229 173.546 152.598 175.896 161.314 181.008L101.183 285.148Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-L_Forearm" transform="translate(0,0) rotate(0)" opacity="0.75">
+            <g transform="translate(-86, -322)">
+                <path d="M31.7837 415.633L69.682 298.164L86.7787 322.408L54.5777 422.358C47.471 418.389 39.7414 416.024 31.7837 415.633Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-L_Hand" transform="translate(0,0) rotate(0)" opacity="0.75">
+            <g transform="translate(-45, -465)">
+                <path d="M0.867378 471.243C-3.25994 450.375 7.7287 431.032 25.6136 427.605L25.6135 427.604C43.4996 424.176 61.0211 438.057 65.1484 458.925C69.2752 479.789 58.333 499.173 40.4481 502.6C22.562 506.027 4.99441 492.109 0.867378 471.243Z"
+                    fill="#1A1A1A"/>
+            </g>
+        </g>
+        <g id="part-Chest" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-233, -253)">
+                <path d="M153.358 252.854C153.919 224.115 161.13 197.858 172.368 177.276L172.366 177.272C193.206 190.492 218.31 197.269 244.664 195.078C265.251 193.366 284.152 186.348 300.215 175.51C312.05 197.193 319.182 225.452 318.581 256.281C317.889 291.692 307.11 323.328 291.138 345.237C275.163 367.146 254.875 379.003 233.544 378.558C212.217 378.112 192.431 365.389 177.32 342.823C162.209 320.256 152.665 288.265 153.358 252.854Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-Hip" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-233, -428)">
+                <path d="M147.258 428.458C147.625 410.239 159.057 391.824 177.218 378.556V378.558C191.706 392.663 209.474 402.068 229.556 404.16C254.146 406.722 277.576 397.827 297.126 381.786C306.317 391.374 317.815 415.223 317.547 428.458C317.547 450.649 316.246 463.16 285.067 474.223C267.087 480.603 182.348 480.123 168.382 469.466C154.417 458.808 146.922 444.879 147.258 428.458Z"
+                    fill="#1A1A1A"/>
+            </g>
+        </g>
+        <g id="part-R_UpperLeg" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-310, -474)">
+                <path d="M327.261 640.576L309.761 474.225L309.763 474.223C292.513 484.899 271.505 491.072 248.722 491.671L293.465 664.764L327.261 640.576Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-R_Shin" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-293, -665)">
+                <path d="M338.86 800.546L331.381 686.02L331.379 686.021L294.23 670.384L293.772 808.427C294.804 807.906 295.831 807.394 296.889 806.913C310.523 800.746 324.99 798.844 338.86 800.546Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-R_Foot" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-339, -801)">
+                <path d="M346.16 807.183C343.703 806.995 341.259 806.899 338.861 806.912L338.86 806.913C338.06 806.918 337.272 806.947 336.481 806.973C314.325 807.687 295.689 816.65 292.461 829.043C288.773 843.206 306.696 856.087 332.887 858.082C359.078 860.076 382.896 850.384 386.586 836.221C390.274 822.057 372.351 809.177 346.16 807.183Z"
+                    fill="#1A1A1A"/>
+            </g>
+        </g>
+        <g id="part-R_UpperArm" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-330, -167)">
+                <path d="M367.625 285.148L396.423 286.814L329.62 167.065C322.503 173.546 317.241 175.896 308.701 181.008L367.625 285.148Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-R_Forearm" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-381, -322)">
+                <path d="M435.634 415.633L398.495 298.164L381.741 322.408L413.297 422.358C420.261 418.389 427.836 416.024 435.634 415.633Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-R_Hand" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-422, -465)">
+                <path d="M465.931 471.243C469.975 450.375 459.207 431.032 441.68 427.605L441.681 427.604C424.153 424.176 406.983 438.057 402.938 458.925C398.894 479.789 409.617 499.173 427.143 502.6C444.671 506.027 461.886 492.109 465.931 471.243Z"
+                    fill="#1A1A1A"/>
+            </g>
+        </g>
+        <g id="part-Neck" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-233, -148)">
+                <path d="M245.098 188.509V148.22H224.807V188.509C231.133 186.909 238.014 188.666 245.098 188.509Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+        <g id="part-Head" transform="translate(0,0) rotate(0)">
+            <g transform="translate(-233, -144)">
+                <path d="M233.544 0C194.02 0 162.212 31.9775 162.212 71.9077C162.212 111.841 194.02 143.818 233.544 143.818C273.068 143.818 304.922 111.841 304.922 71.9092C304.922 31.9806 273.068 0 233.544 0Z"
+                    fill="#2C2C2C"/>
+            </g>
+        </g>
+    </svg>
 </body>
 </html>
