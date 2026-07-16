@@ -47,6 +47,7 @@ export class PartUploader {
 
         // Track pivot state per bone: { pivotX, pivotY }
         this._pivots = {};
+        this._images = {};
     }
     mount() {
         this._injectStyles();
@@ -84,6 +85,10 @@ export class PartUploader {
 
         // Hair section
         body.appendChild(this._buildHairSection());
+        body.appendChild(divider());
+
+        // Expression section
+        body.appendChild(this._buildExpressionSection());
         body.appendChild(divider());
 
         // Clear all button
@@ -143,12 +148,12 @@ export class PartUploader {
             e.preventDefault();
             zone.classList.remove('pu-zone-drag');
             const file = e.dataTransfer.files[0];
-            if (file) this._loadFile(file, boneName, zone, pivotCanvas);
+            if (file) this._loadFile(file, boneName, zone, pivotCanvas, rotateBtn);
         });
 
         // File input change
         input.addEventListener('change', () => {
-            if (input.files[0]) this._loadFile(input.files[0], boneName, zone, pivotCanvas);
+            if (input.files[0]) this._loadFile(input.files[0], boneName, zone, pivotCanvas, rotateBtn);
         });
 
         row.appendChild(zone);
@@ -241,6 +246,54 @@ export class PartUploader {
 
         return section;
     }
+    _buildExpressionSection() {
+        const section = el('div', 'pu-group');
+
+        const groupLabel = el('span', 'mn-label');
+        groupLabel.textContent = 'Expression (movement)';
+        section.appendChild(groupLabel);
+
+        const hint = el('span', 'pu-subtitle');
+        hint.textContent = 'Fades in over the head as the character speeds up';
+        hint.style.fontSize = '9px';
+        section.appendChild(hint);
+
+        const row = el('div', 'pu-slot');
+        const label = el('span', 'pu-slot-label');
+        label.textContent = 'Alert face';
+        row.appendChild(label);
+
+        const zone = el('div', 'pu-zone');
+        zone.title = 'Upload an "alert/moving" face image';
+
+        const input = document.createElement('input');
+        input.type   = 'file';
+        input.accept = 'image/png,image/webp,image/jpeg';
+        input.style.display = 'none';
+        zone.appendChild(input);
+
+        const zoneLabel = el('span', 'pu-zone-label');
+        zoneLabel.textContent = '+';
+        zone.appendChild(zoneLabel);
+
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('pu-zone-drag'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('pu-zone-drag'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('pu-zone-drag');
+            const file = e.dataTransfer.files[0];
+            if (file) this._loadExpressionFile(file, zone);
+        });
+        input.addEventListener('change', () => {
+            if (input.files[0]) this._loadExpressionFile(input.files[0], zone);
+        });
+
+        row.appendChild(zone);
+        section.appendChild(row);
+
+        return section;
+    }
     _loadFile(file, boneName, zone, pivotCanvas) {
         const url = URL.createObjectURL(file);
         const img = new Image();
@@ -276,6 +329,22 @@ export class PartUploader {
 
         img.onerror = () => {
             console.error('PartUploader: failed to load hair image');
+            URL.revokeObjectURL(url);
+        };
+
+        img.src = url;
+    }
+    _loadExpressionFile(file, zone) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            const headPivot = this._pivots['Head'] ?? { pivotX: 0.5, pivotY: 0.05 };
+            this.renderer.setExpressionOverlay('Head', img, headPivot);
+            this._showThumbnail(zone, img, url);
+        };
+        img.onerror = () => {
+            console.error('PartUploader: failed to load expression overlay image');
             URL.revokeObjectURL(url);
         };
 
@@ -354,6 +423,7 @@ export class PartUploader {
             }
         }
         this.renderer.removeHair();
+        this.renderer.removeExpressionOverlay('Head');
 
         // Reset upload count and fire callback
         this._uploadedCount = 0;

@@ -35,84 +35,76 @@ skeleton.update();
 // Secondary bodies
 const secondBody = new SecondBodyLayer(world, skeleton, engine);
 // hair
-// secondBody.addHairStrand('Head', 10, 10, {
-//     radius:      4,
-//     mass:        0.2,
-//     frictionAir: 0.10,
-//     stiffness:   0.5,
-//     color:       '#7af4eb',
-//     attachAt:    'tail',
-// });
-// secondBody.addHairStrand('Head', 4, 13, {
-//     radius:      3,
-//     mass:        0.12,  // lower = floatier, higher = heavier swing
-//     frictionAir: 0.09,  // damping: higher = less swing, lower = more
-//     stiffness:   0.45,  // constraint stiffness: higher = less stretch
-//     color:       '#4a3020',
-//     attachAt:    'tail',
-// });
-// secondBody.addClothingChain('Chest', 3, 16, {
-//     columns:     25,
-//     width:       14,
-//     mass:        0.6,
-//     frictionAir: 0.05,
-//     stiffness:   0.03,
-//     spreadFactor:0.9,
-//     color:       'rgba(197, 25, 25, 0.16)',
-//     strokeColor: 'rgba(222, 26, 26, 0.35)',
-//     mask:        0,     // collisionFilter
-//     attachBones: [
-//         { boneName: 'L_Shoulder', attachAt: 'tail' },
-//         { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 12 } },
-//         { boneName: 'R_Shoulder', attachAt: 'tail' },
-//     ],
-// });
-// secondBody.addClothingChain('Chest', 6, 20, {
-//     columns:     10,
-//     width:       16,
-//     mass:        1,
-//     frictionAir: 1,
-//     stiffness:   0.45,
-//     spreadFactor: 0.9,
-//     color:       'rgba(197, 25, 25, 0.16)',
-//     strokeColor: 'rgba(222, 26, 26, 0.35)',
-//     mask:        0,     // collisionFilter
-//     attachBones: [
-//         { boneName: 'L_Hip', attachAt: 'tail' },
-//         { boneName: 'Chest', attachAt: 'head', offset: { x: 0, y: 12 } },
-//         { boneName: 'R_Hip', attachAt: 'tail' },
-//     ],
-// });
+secondBody.addHairStrand('Head', 10, 10, {
+    radius:      4,
+    mass:        0.2,
+    frictionAir: 0.10,
+    stiffness:   0.5,
+    color:       '#7af4eb',
+    attachAt:    'tail',
+});
+secondBody.addClothingChain('Chest', 8, 16, {
+    columns:     25,
+    width:       14,
+    mass:        0.6,
+    frictionAir: 0.05,
+    stiffness:   0.03,
+    spreadFactor:0.9,
+    color:       'rgba(197, 25, 25, 0.16)',
+    strokeColor: 'rgba(222, 26, 26, 0.35)',
+    mask:        0,     // collisionFilter
+    attachBones: [
+        { boneName: 'L_Shoulder', attachAt: 'tail' },
+        { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 12 } },
+        { boneName: 'R_Shoulder', attachAt: 'tail' },
+    ],
+});
 
 // Render Management
+const ASSET_BASE = new URL('./assets/default/', import.meta.url);
+const asset = (filename) => new URL(filename, ASSET_BASE).href;
+
 const rManager = new RendererManager(skeleton, secondBody);
 rManager.debug = false;
-const ASSET_BASE = new URL('./assets/default/', import.meta.url);
-const defaultParts = {
-    Head:        new URL('head.png', ASSET_BASE).href,
-    Neck:        new URL('neck.png', ASSET_BASE).href,
-    Chest:       new URL('torso.png', ASSET_BASE).href,
-    Spine:       new URL('torso.png', ASSET_BASE).href,
-    Hip:       new URL('hip.png', ASSET_BASE).href,
-    R_UpperArm:  new URL('upperarm.png', ASSET_BASE).href,
-    R_Forearm:   new URL('forearm.png', ASSET_BASE).href,
-    R_Hand:      new URL('hand.png', ASSET_BASE).href,
-    L_UpperArm:  new URL('upperarm.png', ASSET_BASE).href,
-    L_Forearm:   new URL('forearm.png', ASSET_BASE).href,
-    L_Hand:      new URL('hand.png', ASSET_BASE).href,
-    R_UpperLeg:  new URL('upperleg.png', ASSET_BASE).href,
-    R_Shin:      new URL('shin.png', ASSET_BASE).href,
-    R_Foot:      new URL('foot.png', ASSET_BASE).href,
-    L_UpperLeg:  new URL('upperleg.png', ASSET_BASE).href,
-    L_Shin:      new URL('shin.png', ASSET_BASE).href,
-    L_Foot:      new URL('foot.png', ASSET_BASE).href,
-};
-await rManager.init(defaultParts);
+await rManager.init({
+    Head:        asset('head_happy.png'),
+    Neck:        asset('neck.png'),
+    Chest:       asset('torso.png'),
+    Spine:       asset('torso.png'),
+    Hip:         asset('hip.png'),
+    R_UpperArm:  asset('upperarm.png'),
+    R_Forearm:   asset('forearm.png'),
+    R_Hand:      asset('hand.png'),
+    L_UpperArm:  asset('upperarm.png'),
+    L_Forearm:   asset('forearm.png'),
+    L_Hand:      asset('hand.png'),
+    R_UpperLeg:  asset('upperleg.png'),
+    R_Shin:      asset('shin.png'),
+    R_Foot:      asset('foot.png'),
+    L_UpperLeg:  asset('upperleg.png'),
+    L_Shin:      asset('shin.png'),
+    L_Foot:      asset('foot.png'),
+});
 
 Events.on(render, 'afterRender', () => {
     rManager.draw(render.context);
 });
 
+// Default expression overlay — the alert/moving face image, faded in over
+// the neutral Head image as Head.velocity rises. See setExpressionOverlay()
+// in ImageCharacterRenderer for how the crossfade works.
+const alertFace = new Image();
+alertFace.onload = () => {
+    rManager.imageRenderer.setExpressionOverlay('Head', alertFace, {
+        pivotX: 0.5,
+        pivotY: 0.05,   // match the default Head part's pivot so they line up
+    });
+};
+alertFace.onerror = () => {
+    console.warn('main.js: failed to load default expression overlay (head_alert.png)');
+};
+alertFace.src = asset('head_alert.png');
+ 
 // Part uploader — lets the user override any default part with their own image
 const uploader = new PartUploader({
     renderer: rManager.imageRenderer,

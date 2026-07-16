@@ -4,7 +4,6 @@ export class ImageCharacterRenderer {
         this.secondBodyLayer = secondBodyLayer;
         this.globalScale     = options.globalScale ?? 1;
         this.debug           = false;
-
         this.squashStretch = {
             enabled:    options.squashStretch?.enabled    ?? true,
             maxStretch: options.squashStretch?.maxStretch ?? 0.5,   // +50% length at full speed
@@ -23,6 +22,9 @@ export class ImageCharacterRenderer {
             'R_UpperArm', 'R_Forearm', 'R_Hand',
             'Neck', 'Head',
         ];
+
+        this.expressionOverlays = {};
+
         this._leftParts = new Set([
             'L_UpperLeg', 'L_Shin', 'L_Foot',
             'L_UpperArm', 'L_Forearm', 'L_Hand',
@@ -60,6 +62,21 @@ export class ImageCharacterRenderer {
     removePart(boneName) {
         delete this.parts[boneName];
     }
+    setExpressionOverlay(boneName, image, options = {}) {
+        this.expressionOverlays[boneName] = {
+            image,
+            pivotX: options.pivotX ?? 0.5,
+            pivotY: options.pivotY ?? 0.05,
+            scaleX: options.scaleX ?? 1,
+            scaleY: options.scaleY ?? 1,
+            anchor: options.anchor ?? 'head',
+            speedCap: options.speedCap ?? this.squashStretch.speedCap,
+            squashStretch: false, // overlay follows the base image's squash/stretch implicitly by sharing its geometry; avoid double-applying
+        };
+    }
+    removeExpressionOverlay(boneName) {
+        delete this.expressionOverlays[boneName];
+    }
     setHair(image, options = {}) {
         this.hair = {
             image,
@@ -93,6 +110,10 @@ export class ImageCharacterRenderer {
 
         ctx.globalAlpha = 1.0;
 
+        // Expression overlays — drawn after all normal parts (so they sit
+        // on top of e.g. the neutral head), before hair.
+        this._drawExpressionOverlays(ctx);
+
         // Draw hair last (on top of head)
         this._drawHair(ctx);
 
@@ -100,9 +121,21 @@ export class ImageCharacterRenderer {
 
         ctx.restore();
     }
+    _drawExpressionOverlays(ctx) {
+        for (const [boneName, overlay] of Object.entries(this.expressionOverlays)) {
+            const bone = this._bone(boneName);
+            if (!bone) continue;
+
+            const alpha = Math.min(bone.velocity / overlay.speedCap, 1);
+            this._drawImageOnBone(ctx, bone, overlay, alpha);
+        }
+    }
     _drawPart(ctx, bone, part) {
+        this._drawImageOnBone(ctx, bone, part, ctx.globalAlpha);
+    }
+    _drawImageOnBone(ctx, bone, part, alpha = 1) {
         const { image, pivotX, pivotY, scaleX, scaleY, anchor, squashStretch } = part;
-        if (!image || !image.complete) return;
+        if (!image || !image.complete || alpha <= 0) return;
 
         // Scale image height to bone length; width scales proportionally
         const aspectRatio = image.naturalWidth / image.naturalHeight;
@@ -126,6 +159,7 @@ export class ImageCharacterRenderer {
         const anchorY = bone.worldY + Math.cos(bone.worldAngle) * bone.length * anchorT;
 
         ctx.save();
+        ctx.globalAlpha = alpha;
         ctx.translate(anchorX, anchorY);
         ctx.rotate(-bone.worldAngle);
 
