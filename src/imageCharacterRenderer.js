@@ -4,7 +4,7 @@ export class ImageCharacterRenderer {
         this.secondBodyLayer = secondBodyLayer;
         this.globalScale     = options.globalScale ?? 1;
         this.debug           = false;
-            
+
         this.squashStretch = {
             enabled:    options.squashStretch?.enabled    ?? true,
             maxStretch: options.squashStretch?.maxStretch ?? 0.5,   // +50% length at full speed
@@ -12,7 +12,7 @@ export class ImageCharacterRenderer {
             speedCap:   options.squashStretch?.speedCap   ?? 14,    // px/frame for 100% effect
         };
 
-        this.parts = {};    // populated by setPart() calls from PartUploader
+        this.parts = {};
         this.hair = null;
 
         this.drawOrder = options.drawOrder ?? [
@@ -48,11 +48,13 @@ export class ImageCharacterRenderer {
     setPart(boneName, image, pivot = {}) {
         this.parts[boneName] = {
             image,
-            pivotX: pivot.pivotX ?? 0.5,    // 0=left edge, 1=right edge
-            pivotY: pivot.pivotY ?? 0.05,   // 0=top edge,  1=bottom edge
+            pivotX: pivot.pivotX ?? 0.5,
+            pivotY: pivot.pivotY ?? 0.05,
             scaleX: pivot.scaleX ?? 1,
             scaleY: pivot.scaleY ?? 1,
-            anchor: pivot.anchor ?? 'head', // 'head' || 'center || 'tail'
+            squashStretch: pivot.squashStretch ?? true,
+ 
+            anchor: pivot.anchor ?? 'head',
         };
     }
     removePart(boneName) {
@@ -61,8 +63,8 @@ export class ImageCharacterRenderer {
     setHair(image, options = {}) {
         this.hair = {
             image,
-            segments: options.segments ?? 4,    // number of vertical strips
-            pivotX:   options.pivotX   ?? 0.5,  // horizontal anchor (0–1)
+            segments: options.segments ?? 4,
+            pivotX:   options.pivotX   ?? 0.5,
         };
         // Pre-slice the hair image into offscreen canvases for performance
         this._sliceHair();
@@ -104,8 +106,8 @@ export class ImageCharacterRenderer {
 
         // Scale image height to bone length; width scales proportionally
         const aspectRatio = image.naturalWidth / image.naturalHeight;
-        const dh = bone.length * this.globalScale * scaleY;
-        const dw = dh * aspectRatio * scaleX;
+        let dh = bone.length * this.globalScale * scaleY;
+        let dw = dh * aspectRatio * scaleX;
 
         const ss = this.squashStretch;
         if (ss.enabled && squashStretch) {
@@ -115,19 +117,18 @@ export class ImageCharacterRenderer {
             dh *= stretchScale;   // longer along the bone at speed
             dw *= squashScale;    // thinner across the bone at speed
         }
-
-        let anchorT = 0;    // "head"
+        
+        let anchorT = 0;              // 'head'
         if (anchor === 'center') anchorT = 0.5;
         if (anchor === 'tail')   anchorT = 1.0;
 
         const anchorX = bone.worldX + Math.sin(bone.worldAngle) * bone.length * anchorT;
         const anchorY = bone.worldY + Math.cos(bone.worldAngle) * bone.length * anchorT;
- 
+
         ctx.save();
         ctx.translate(anchorX, anchorY);
         ctx.rotate(-bone.worldAngle);
 
-        // Offset so pivot pixel sits at the translation origin (bone head)
         ctx.drawImage(
             image,
             -pivotX * dw,         // x offset: pivot fraction of width
@@ -214,7 +215,7 @@ export class ImageCharacterRenderer {
 
         ctx.save();
         ctx.translate(head.tailX, head.tailY);
-        ctx.rotate(head.worldAngle);
+        ctx.rotate(-head.worldAngle);
         ctx.drawImage(img, -dw * this.hair.pivotX, -dh * 0.15, dw, dh);
         ctx.restore();
     }
