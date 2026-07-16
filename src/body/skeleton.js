@@ -17,32 +17,32 @@ export class Skeleton {
         // Head + Torso (upward, offset the start angle)
         const spine = this._add(new Bone('Spine', 40, hip));
         const chest = this._add(new Bone('Chest', 50, spine));
-        const neck = this._add(new Bone('Neck', 20, chest));
+        const neck = this._add(new Bone('Neck', 10, chest));
         const head = this._add(new Bone('Head', 35, neck));
  
         // Right arm 
         const rShoulder = this._add(new Bone('R_Shoulder', 20, chest));
         const rUpperArm = this._add(new Bone('R_UpperArm', 40, rShoulder));
         const rForearm = this._add(new Bone('R_Forearm', 38, rUpperArm));
-        const rHand = this._add(new Bone('R_Hand', 20, rForearm));
+        const rHand = this._add(new Bone('R_Hand', 15   , rForearm));
  
         // Left arm 
         const lShoulder = this._add(new Bone('L_Shoulder', 20, chest));
         const lUpperArm = this._add(new Bone('L_UpperArm', 40, lShoulder));
         const lForearm = this._add(new Bone('L_Forearm', 38, lUpperArm));
-        const lHand = this._add(new Bone('L_Hand', 20, lForearm));
+        const lHand = this._add(new Bone('L_Hand', 15, lForearm));
  
         // Right leg 
-        const rHip = this._add(new Bone('R_Hip', 15, hip));
+        const rHip = this._add(new Bone('R_Hip', 30, hip));
         const rUpperLeg = this._add(new Bone('R_UpperLeg', 45, rHip));
         const rShin = this._add(new Bone('R_Shin', 42, rUpperLeg));
-        const rFoot = this._add(new Bone('R_Foot', 20, rShin));
+        const rFoot = this._add(new Bone('R_Foot', 10, rShin));
  
         // Left leg 
-        const lHip = this._add(new Bone('L_Hip', 15, hip));
+        const lHip = this._add(new Bone('L_Hip', 30, hip));
         const lUpperLeg = this._add(new Bone('L_UpperLeg', 45, lHip));
         const lShin = this._add(new Bone('L_Shin', 42, lUpperLeg));
-        const lFoot = this._add(new Bone('L_Foot', 20, lShin));
+        const lFoot = this._add(new Bone('L_Foot', 10, lShin));
  
         // Set the root and seed it at the world origin
         this.root = hip;
@@ -77,9 +77,13 @@ export class Skeleton {
         lShoulder.localAngle = -Math.PI / 2;   // left  = 90° counter-clockwise
  
         // Legs angle slightly outward and downward
-        rHip.localAngle =  0.15;
-        lHip.localAngle = -0.15;
+        rHip.localAngle =  1.0;
+        lHip.localAngle = -1.0;
         
+        // legs angle outward from the chest
+        rUpperLeg.localAngle = -0.85;  
+        lUpperLeg.localAngle = 0.85;   
+ 
     }
     _add(bone) { // add bones to list
         this.bones[bone.name] = bone;

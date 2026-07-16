@@ -4,25 +4,11 @@
  * Builds and manages the character part upload UI panel.
  * Sits alongside the existing UIController panel (right side of screen).
  *
- * WHAT IT DOES:
- *   - Shows one upload slot per body part (grouped: Head, Torso, Arms, Legs)
- *   - Shows one upload slot for Hair (with a segment count control)
- *   - Each slot accepts a PNG/WebP drag-drop or click-to-browse
- *   - On upload: loads the image, shows a thumbnail, calls renderer.setPart()
- *   - Shows a pivot editor inline per part (click thumbnail to set pivot)
- *   - "Clear all" button resets the character to the procedural default
- *
  * PIVOT EDITOR:
  *   After uploading a part, the thumbnail becomes clickable.
  *   Clicking on it sets the pivot point at that relative position.
  *   A crosshair overlay shows the current pivot.
  *   This is the minimum viable pivot workflow — no drag, just click to place.
- *
- * DESIGN:
- *   Matches the existing UIController panel language exactly:
- *   same glass background, same mn-* class conventions for buttons/labels,
- *   same teal (#7af4eb) accent. Placed on the RIGHT side of the screen
- *   so it doesn't overlap the left-side UIController panel.
  *
  * USAGE:
  *   import { PartUploader } from './PartUploader.js';
@@ -48,12 +34,6 @@ export class PartUploader {
 
         this._panel          = null;
         this._uploadedCount  = 0;
-
-        /**
-         * Slot definitions — grouped for the UI.
-         * boneName must match skeleton bone names exactly.
-         * label is the display name shown to the user.
-         */
         this._groups = [
             {
                 name: 'Head',
