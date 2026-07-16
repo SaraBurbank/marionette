@@ -35,14 +35,14 @@ skeleton.update();
 // Secondary bodies
 const secondBody = new SecondBodyLayer(world, skeleton, engine);
 // hair
-secondBody.addHairStrand('Head', 10, 10, {
-    radius:      4,
-    mass:        0.2,
-    frictionAir: 0.10,
-    stiffness:   0.5,
-    color:       '#7af4eb',
-    attachAt:    'tail',
-});
+// secondBody.addHairStrand('Head', 10, 10, {
+//     radius:      4,
+//     mass:        0.2,
+//     frictionAir: 0.10,
+//     stiffness:   0.5,
+//     color:       '#7af4eb',
+//     attachAt:    'tail',
+// });
 // secondBody.addHairStrand('Head', 4, 13, {
 //     radius:      3,
 //     mass:        0.12,  // lower = floatier, higher = heavier swing
@@ -86,6 +86,7 @@ secondBody.addHairStrand('Head', 10, 10, {
 
 // Render Management
 const rManager = new RendererManager(skeleton, secondBody);
+rManager.debug = false;
 const ASSET_BASE = new URL('./assets/default/', import.meta.url);
 const defaultParts = {
     Head:        new URL('head.png', ASSET_BASE).href,

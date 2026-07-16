@@ -1,31 +1,3 @@
-/**
- * PartUploader.js
- *
- * Builds and manages the character part upload UI panel.
- * Sits alongside the existing UIController panel (right side of screen).
- *
- * PIVOT EDITOR:
- *   After uploading a part, the thumbnail becomes clickable.
- *   Clicking on it sets the pivot point at that relative position.
- *   A crosshair overlay shows the current pivot.
- *   This is the minimum viable pivot workflow — no drag, just click to place.
- *
- * USAGE:
- *   import { PartUploader } from './PartUploader.js';
- *
- *   const uploader = new PartUploader({
- *       renderer:        imageRenderer,   // ImageCharacterRenderer instance
- *       onCharacterLoad: () => {          // called when first part is uploaded
- *           // swap from CharacterRenderer to ImageCharacterRenderer
- *       },
- *       onCharacterClear: () => {         // called when all parts are cleared
- *           // swap back to CharacterRenderer
- *       },
- *   });
- *
- *   uploader.mount();  // inject panel into document.body
- */
-
 export class PartUploader {
     constructor({ renderer, onCharacterLoad, onCharacterClear }) {
         this.renderer         = renderer;
@@ -46,8 +18,7 @@ export class PartUploader {
                 name: 'Torso',
                 slots: [
                     { boneName: 'Chest', label: 'Chest' },
-                    { boneName: 'Spine', label: 'Spine' },
-                    { boneName: 'Hip',   label: 'Hip'   },
+                    { boneName: 'Spine', label: 'Hip' },
                 ],
             },
             {
@@ -77,17 +48,11 @@ export class PartUploader {
         // Track pivot state per bone: { pivotX, pivotY }
         this._pivots = {};
     }
-
-    // ─── Mount ────────────────────────────────────────────────────────────────
-
     mount() {
         this._injectStyles();
         this._panel = this._buildPanel();
         document.body.appendChild(this._panel);
     }
-
-    // ─── Panel construction ───────────────────────────────────────────────────
-
     _buildPanel() {
         const panel = el('div', 'pu-panel');
 
@@ -130,7 +95,6 @@ export class PartUploader {
         panel.appendChild(body);
         return panel;
     }
-
     _buildGroup({ name, slots }) {
         const group = el('div', 'pu-group');
 
@@ -144,10 +108,6 @@ export class PartUploader {
 
         return group;
     }
-
-    /**
-     * One upload slot: label + drop zone + thumbnail + pivot editor.
-     */
     _buildSlot({ boneName, label: labelText }) {
         const row = el('div', 'pu-slot');
 
@@ -215,7 +175,6 @@ export class PartUploader {
 
         return row;
     }
-
     _buildHairSection() {
         const section = el('div', 'pu-group');
 
@@ -282,16 +241,6 @@ export class PartUploader {
 
         return section;
     }
-
-    // ─── File loading ─────────────────────────────────────────────────────────
-
-    /**
-     * Loads an image file and registers it as a body part.
-     * @param {File}              file
-     * @param {string}            boneName
-     * @param {HTMLElement}       zone        - the drop zone element to update
-     * @param {HTMLCanvasElement} pivotCanvas - the pivot editor canvas
-     */
     _loadFile(file, boneName, zone, pivotCanvas) {
         const url = URL.createObjectURL(file);
         const img = new Image();
@@ -314,7 +263,6 @@ export class PartUploader {
 
         img.src = url;
     }
-
     _loadHairFile(file, zone, segments) {
         const url = URL.createObjectURL(file);
         const img = new Image();
@@ -333,16 +281,6 @@ export class PartUploader {
 
         img.src = url;
     }
-
-    // ─── Pivot editor ─────────────────────────────────────────────────────────
-
-    /**
-     * Updates the pivot for a bone and re-draws the pivot canvas.
-     * @param {string}            boneName
-     * @param {number}            px          - normalized 0–1
-     * @param {number}            py          - normalized 0–1
-     * @param {HTMLCanvasElement} pivotCanvas
-     */
     _setPivot(boneName, px, py, pivotCanvas) {
         this._pivots[boneName] = { pivotX: px, pivotY: py };
 
@@ -357,10 +295,6 @@ export class PartUploader {
         const img = part?.image;
         if (img) this._drawPivotCanvas(pivotCanvas, img, px, py);
     }
-
-    /**
-     * Draws the thumbnail + crosshair pivot indicator onto the pivot canvas.
-     */
     _drawPivotCanvas(canvas, img, pivotX, pivotY) {
         const ctx  = canvas.getContext('2d');
         const W    = canvas.width;
@@ -402,9 +336,6 @@ export class PartUploader {
         ctx.textAlign   = 'center';
         ctx.fillText('click to set pivot', W / 2, H - 2);
     }
-
-    // ─── Zone thumbnail ───────────────────────────────────────────────────────
-
     _showThumbnail(zone, img, url) {
         zone.innerHTML       = '';
         zone.style.padding   = '2px';
@@ -415,9 +346,6 @@ export class PartUploader {
         thumb.className = 'pu-thumb';
         zone.appendChild(thumb);
     }
-
-    // ─── Clear all ────────────────────────────────────────────────────────────
-
     _clearAll(clearBtn) {
         // Remove all parts from renderer
         for (const group of this._groups) {
@@ -437,9 +365,6 @@ export class PartUploader {
         this._panel = this._buildPanel();
         parent.appendChild(this._panel);
     }
-
-    // ─── Styles ───────────────────────────────────────────────────────────────
-
     _injectStyles() {
         if (document.getElementById('pu-styles')) return;
         const style = document.createElement('style');
@@ -607,9 +532,6 @@ export class PartUploader {
         document.head.appendChild(style);
     }
 }
-
-// ── DOM helpers ───────────────────────────────────────────────────────────────
-
 function el(tag, className) {
     const e = document.createElement(tag);
     if (className) e.className = className;

@@ -15,33 +15,33 @@ export class Skeleton {
         const hip = this._add(new Bone('Hip', 0, null));
         
         // Head + Torso (upward, offset the start angle)
-        const spine = this._add(new Bone('Spine', 40, hip));
-        const chest = this._add(new Bone('Chest', 50, spine));
+        const spine = this._add(new Bone('Spine', 45, hip));
+        const chest = this._add(new Bone('Chest', 60, spine));
         const neck = this._add(new Bone('Neck', 10, chest));
-        const head = this._add(new Bone('Head', 35, neck));
+        const head = this._add(new Bone('Head', 45, neck));
  
         // Right arm 
-        const rShoulder = this._add(new Bone('R_Shoulder', 20, chest));
-        const rUpperArm = this._add(new Bone('R_UpperArm', 40, rShoulder));
-        const rForearm = this._add(new Bone('R_Forearm', 38, rUpperArm));
-        const rHand = this._add(new Bone('R_Hand', 15   , rForearm));
+        const rShoulder = this._add(new Bone('R_Shoulder', 30, chest));
+        const rUpperArm = this._add(new Bone('R_UpperArm', 50, rShoulder));
+        const rForearm = this._add(new Bone('R_Forearm', 48, rUpperArm));
+        const rHand = this._add(new Bone('R_Hand', 20 , rForearm));
  
         // Left arm 
-        const lShoulder = this._add(new Bone('L_Shoulder', 20, chest));
-        const lUpperArm = this._add(new Bone('L_UpperArm', 40, lShoulder));
-        const lForearm = this._add(new Bone('L_Forearm', 38, lUpperArm));
-        const lHand = this._add(new Bone('L_Hand', 15, lForearm));
+        const lShoulder = this._add(new Bone('L_Shoulder', 30, chest));
+        const lUpperArm = this._add(new Bone('L_UpperArm', 50, lShoulder));
+        const lForearm = this._add(new Bone('L_Forearm', 48, lUpperArm));
+        const lHand = this._add(new Bone('L_Hand', 20, lForearm));
  
         // Right leg 
-        const rHip = this._add(new Bone('R_Hip', 30, hip));
-        const rUpperLeg = this._add(new Bone('R_UpperLeg', 45, rHip));
-        const rShin = this._add(new Bone('R_Shin', 42, rUpperLeg));
+        const rHip = this._add(new Bone('R_Hip', 15, hip));
+        const rUpperLeg = this._add(new Bone('R_UpperLeg', 65, rHip));
+        const rShin = this._add(new Bone('R_Shin', 55, rUpperLeg));
         const rFoot = this._add(new Bone('R_Foot', 10, rShin));
  
         // Left leg 
-        const lHip = this._add(new Bone('L_Hip', 30, hip));
-        const lUpperLeg = this._add(new Bone('L_UpperLeg', 45, lHip));
-        const lShin = this._add(new Bone('L_Shin', 42, lUpperLeg));
+        const lHip = this._add(new Bone('L_Hip', 15, hip));
+        const lUpperLeg = this._add(new Bone('L_UpperLeg', 65, lHip));
+        const lShin = this._add(new Bone('L_Shin', 55, lUpperLeg));
         const lFoot = this._add(new Bone('L_Foot', 10, lShin));
  
         // Set the root and seed it at the world origin
