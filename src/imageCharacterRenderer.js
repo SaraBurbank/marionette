@@ -1,7 +1,5 @@
 /**
- * ImageCharacterRenderer.js
- *
- * Renders a user-uploaded character by drawing per-part images
+ * Renders an uploaded character by drawing per-part images
  * transformed to match each bone's world position and angle.
  *
  * PIPELINE:
@@ -44,23 +42,13 @@
  */
 
 export class ImageCharacterRenderer {
-    /**
-     * @param {object} skeleton        - Your Skeleton instance
-     * @param {object} secondBodyLayer - Your SecondBodyLayer instance (for hair physics)
-     * @param {object} [options]
-     * @param {number} [options.globalScale=1] - Scale all parts uniformly
-     */
     constructor(skeleton, secondBodyLayer, options = {}) {
         this.skeleton        = skeleton;
         this.secondBodyLayer = secondBodyLayer;
         this.globalScale     = options.globalScale ?? 1;
         this.debug           = false;
-
-        /**
-         * parts: Map of boneName → { image, pivotX, pivotY, scaleX, scaleY }
-         * Populated by setPart() calls from PartUploader.
-         */
-        this.parts = {};
+            
+        this.parts = {};    // populated by setPart() calls from PartUploader.
 
         /**
          * hair: { image, segments, pivotX } | null
@@ -68,11 +56,6 @@ export class ImageCharacterRenderer {
          */
         this.hair = null;
 
-        /**
-         * DRAW ORDER — back to front.
-         * Parts not in this.parts are silently skipped.
-         * Override by passing options.drawOrder.
-         */
         this.drawOrder = options.drawOrder ?? [
             'L_UpperLeg', 'L_Shin', 'L_Foot',
             'L_UpperArm', 'L_Forearm', 'L_Hand',
@@ -80,29 +63,37 @@ export class ImageCharacterRenderer {
             'R_UpperLeg', 'R_Shin', 'R_Foot',
             'R_UpperArm', 'R_Forearm', 'R_Hand',
             'Neck', 'Head',
-            // 'Hair' handled separately at the end
         ];
-
-        // Left-side parts rendered at reduced opacity to suggest depth
         this._leftParts = new Set([
             'L_UpperLeg', 'L_Shin', 'L_Foot',
             'L_UpperArm', 'L_Forearm', 'L_Hand',
         ]);
     }
 
-    // ─── Part registration ────────────────────────────────────────────────────
+    // Defaults
+    async loadDefaults(defaultParts = {}, pivots = {}) {
+        const loads = Object.entries(defaultParts).map(([boneName, url]) => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    this.setPart(boneName, img, pivots[boneName]);
+                    resolve();
+                };
+                img.onerror = () => {
+                    console.warn(`ImageCharacterRenderer: failed to load default for ${boneName} (${url})`);
+                    resolve(); // don't block the rest of the character on one missing part
+                };
+                img.src = url;
+            });
+        });
+        await Promise.all(loads);
+    }
+
+    // Part registration
 
     /**
-     * Register one body part image.
-     * Called by PartUploader after the user uploads a file.
-     *
-     * @param {string}           boneName  - must match a bone name in skeleton
-     * @param {HTMLImageElement} image     - fully loaded image element
-     * @param {object}           [pivot]
      * @param {number}           [pivot.pivotX=0.5]  - 0=left edge, 1=right edge
      * @param {number}           [pivot.pivotY=0.05] - 0=top edge,  1=bottom edge
-     * @param {number}           [pivot.scaleX=1]    - horizontal scale override
-     * @param {number}           [pivot.scaleY=1]    - vertical scale override
      */
     setPart(boneName, image, pivot = {}) {
         this.parts[boneName] = {
@@ -113,20 +104,11 @@ export class ImageCharacterRenderer {
             scaleY: pivot.scaleY ?? 1,
         };
     }
-
-    /**
-     * Remove a part (revert to no-render for that bone).
-     * @param {string} boneName
-     */
     removePart(boneName) {
         delete this.parts[boneName];
     }
 
     /**
-     * Register the hair image for physics-based rendering.
-     *
-     * @param {HTMLImageElement} image
-     * @param {object}           [options]
      * @param {number}           [options.segments=4]  - number of vertical strips
      * @param {number}           [options.pivotX=0.5]  - horizontal anchor (0–1)
      */
@@ -145,13 +127,6 @@ export class ImageCharacterRenderer {
         this.hair        = null;
         this._hairSlices = [];
     }
-
-    // ─── Main draw ────────────────────────────────────────────────────────────
-
-    /**
-     * Call once per frame inside your afterRender / animation loop.
-     * @param {CanvasRenderingContext2D} ctx
-     */
     draw(ctx) {
         ctx.save();
         ctx.imageSmoothingEnabled = true;
@@ -180,7 +155,7 @@ export class ImageCharacterRenderer {
         ctx.restore();
     }
 
-    // ─── Part rendering ───────────────────────────────────────────────────────
+    // Part rendering
 
     /**
      * Draw one body part image transformed to its bone.
@@ -332,8 +307,6 @@ export class ImageCharacterRenderer {
         if (!this.secondBodyLayer) return null;
         return this.secondBodyLayer._elements.find(el => el.type === 'hair') ?? null;
     }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     _bone(name) {
         try   { return this.skeleton.getBone(name); }

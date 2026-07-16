@@ -1,7 +1,7 @@
 import { Skeleton } from "./body/skeleton.js";
 import { IKSolver } from "./IKSolver.js";
 import { InputHandler } from "./inputHandler.js";
-import { SecondBodyLayer } from "./secondBody.js";
+import { SecondBodyLayer } from "./body/secondBody.js";
 import { PartUploader } from "./UI/partUploader.js";
 import { PoseManager } from "./UI/poseManager.js";
 import { ProportionController } from "./UI/proportionController.js";
@@ -84,21 +84,36 @@ secondBody.addHairStrand('Head', 10, 10, {
 //     ],
 // });
 
-// Render Managements
-const svg    = document.getElementById('character-svg');
-const rManager = new RendererManager(skeleton, secondBody, svg);
-rManager.init();
-rManager.setMode('svg');
- 
+// Render Management
+const rManager = new RendererManager(skeleton, secondBody);
+const ASSET_BASE = new URL('./assets/default/', import.meta.url);
+const defaultParts = {
+    Head:        new URL('head.png', ASSET_BASE).href,
+    Neck:        new URL('neck.png', ASSET_BASE).href,
+    Chest:       new URL('torso.png', ASSET_BASE).href,
+    Spine:       new URL('hip.png', ASSET_BASE).href,
+    R_UpperArm:  new URL('upperarm.png', ASSET_BASE).href,
+    R_Forearm:   new URL('forearm.png', ASSET_BASE).href,
+    R_Hand:      new URL('hand.png', ASSET_BASE).href,
+    L_UpperArm:  new URL('upperarm.png', ASSET_BASE).href,
+    L_Forearm:   new URL('forearm.png', ASSET_BASE).href,
+    L_Hand:      new URL('hand.png', ASSET_BASE).href,
+    R_UpperLeg:  new URL('upperleg.png', ASSET_BASE).href,
+    R_Shin:      new URL('shin.png', ASSET_BASE).href,
+    R_Foot:      new URL('foot.png', ASSET_BASE).href,
+    L_UpperLeg:  new URL('upperleg.png', ASSET_BASE).href,
+    L_Shin:      new URL('shin.png', ASSET_BASE).href,
+    L_Foot:      new URL('foot.png', ASSET_BASE).href,
+};
+await rManager.init(defaultParts);
+
 Events.on(render, 'afterRender', () => {
     rManager.draw(render.context);
 });
 
-// Part uploader
+// Part uploader — lets the user override any default part with their own image
 const uploader = new PartUploader({
-    renderer:         rManager.imageRenderer,
-    onCharacterLoad:  () => rManager.setMode('image'),  // uploaded Image
-    onCharacterClear: () => rManager.setMode('svg'),   // default marionette
+    renderer: rManager.imageRenderer,
 });
 uploader.mount();
 

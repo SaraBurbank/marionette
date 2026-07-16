@@ -1,4 +1,4 @@
-import { Cloth } from './body/cloth.js';
+import { Cloth } from './cloth.js';
 
 export class SecondBodyLayer {
     constructor(world, skeleton, engine) {
