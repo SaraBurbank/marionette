@@ -5,7 +5,7 @@ export class SecondBodyLayer {
         this.world    = world;
         this.skeleton = skeleton;
         this.engine   = engine;
-        this.Matter   = MatterRef; // injected so this class can be unit-tested with a mock/stub
+        this.Matter   = MatterRef;
         this._elements = [];    // list of secondary elements        
     }
     addHairStrand(boneName, segments, segmentLen, options = {}) {
@@ -52,7 +52,7 @@ export class SecondBodyLayer {
                 bodyB:     body,
                 length:    segmentLen,
                 stiffness: cfg.stiffness,
-                damping:   0.05,
+                damping:   cfg.damping ?? 0.05,
                 render:    {
                     visible:     true,
                     strokeStyle: cfg.color,
@@ -78,7 +78,7 @@ export class SecondBodyLayer {
             particleRadius: 3,
             attachBones:    options.attachBones || [{ boneName, attachAt: options.attachAt || 'tail', offset: options.offset }],
             color:          options.color,
-            strokeColor:    options.strokeColor,
+            strokeColor:    options.color,
             stiffness:      options.stiffness,
             mass:           options.mass,
             spreadFactor:   options.spreadFactor,
@@ -92,9 +92,9 @@ export class SecondBodyLayer {
             mass: cfg.mass,
             frictionAir: 0.06,
             collisionFilter: { mask: options.mask },
-            render: { visible: true, fillStyle: cfg.color, strokeStyle: cfg.strokeColor, lineWidth: 1 }
+            render: { visible: false, fillStyle: cfg.color, strokeStyle: cfg.color, lineWidth: 1 }
         };
-        const constraintOptions = { stiffness: cfg.stiffness, render: { type: 'line', anchors: false, strokeStyle: cfg.strokeColor } };
+        const constraintOptions = { stiffness: cfg.stiffness, damping: cfg.damping ?? 0.1, render: { visible: false, type: 'line', anchors: false, strokeStyle: cfg.color } };
 
         const cloth = Cloth(topRowPositions[0].x, topRowPositions[0].y, cfg.columns, cfg.rows, cfg.columnGap, cfg.rowGap, true, cfg.particleRadius, particleOptions, constraintOptions, this.Matter);
 
@@ -164,6 +164,67 @@ export class SecondBodyLayer {
                 continue;
             }
         }
+    }
+    drawClothing(ctx) {
+        for (const el of this._elements) {
+            if (el.type === 'clothing') this._drawClothMesh(ctx, el);
+        }
+    }
+    _drawClothMesh(ctx, el) {
+        const { cloth, cfg } = el;
+        const { columns, rows } = cfg;
+        const bodies = cloth.bodies;
+
+        // Build every quad as two triangles into ONE path, then fill once
+        const fabric = new Path2D();
+        for (let r = 0; r < rows - 1; r++) {
+            for (let c = 0; c < columns - 1; c++) {
+                const p00 = bodies[r * columns + c].position;
+                const p10 = bodies[r * columns + c + 1].position;
+                const p01 = bodies[(r + 1) * columns + c].position;
+                const p11 = bodies[(r + 1) * columns + c + 1].position;
+
+                fabric.moveTo(p00.x, p00.y);
+                fabric.lineTo(p10.x, p10.y);
+                fabric.lineTo(p01.x, p01.y);
+                fabric.closePath();
+
+                fabric.moveTo(p10.x, p10.y);
+                fabric.lineTo(p11.x, p11.y);
+                fabric.lineTo(p01.x, p01.y);
+                fabric.closePath();
+            }
+        }
+
+        ctx.save();
+        ctx.fillStyle = cfg.color;
+        ctx.fill(fabric);
+
+        // Outline just the silhouette
+        ctx.strokeStyle = cfg.color;
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        for (let c = 0; c < columns; c++) {                      // waist, left→right
+            const p = bodies[c].position;
+            c === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+        }
+        for (let r = 1; r < rows; r++) {                         // right seam, top→bottom
+            const p = bodies[r * columns + columns - 1].position;
+            ctx.lineTo(p.x, p.y);
+        }
+        for (let c = columns - 2; c >= 0; c--) {                 // hem, right→left
+            const p = bodies[(rows - 1) * columns + c].position;
+            ctx.lineTo(p.x, p.y);
+        }
+        for (let r = rows - 2; r >= 0; r--) {                    // left seam, bottom→top
+            const p = bodies[r * columns].position;
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
     }
     _makeAnchor(x, y) {
         return this.Matter.Bodies.circle(x, y, 2, {

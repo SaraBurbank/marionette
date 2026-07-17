@@ -6,7 +6,7 @@ export function Cloth(xx, yy, columns, rows, columnGap, rowGap, crossBrace, part
 
     var group = Body.nextGroup(true);
     particleOptions = Common.extend({ inertia: Infinity, friction: 0.00001, collisionFilter: { group: group }, render: { visible: false }}, particleOptions);
-    constraintOptions = Common.extend({ stiffness: 0.06, render: { type: 'line', anchors: false } }, constraintOptions);
+    constraintOptions = Common.extend({ stiffness: 0.06, damping: 0.1, render: { type: 'line', anchors: false } }, constraintOptions);
 
     var cloth = Composites.stack(xx, yy, columns, rows, columnGap, rowGap, function(x, y) {
         return Bodies.circle(x, y, particleRadius, particleOptions);

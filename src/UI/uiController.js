@@ -1,11 +1,6 @@
 /** TODO
  * -> change from Pose A / Pose B save buttons + Play/Stop button to 
  *      save button and list of poses (you can remove them form the list (trash/'X' icon))
- * -> insert the css from a file instead of everything here, like this:
- *      let link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'styles.css';
-        document.head.appendChild(link);
  * */
 export class UIController {
     constructor({ poseManager, proportionController, inputHandler }) {
@@ -24,7 +19,7 @@ export class UIController {
         this.poses.onStateChange = (state) => this._onPoseStateChange(state);
     }
     mount() {   // mount UI panel into the document
-        this._injectStyles();
+        // this._injectStyles();
         this._panel = this._buildPanel();
         document.body.appendChild(this._panel);
     }
@@ -92,7 +87,39 @@ export class UIController {
         this._playBtn.disabled = true;  // enable after both poses saved
         this._playBtn.title = 'Play back interpolation between Pose A and Pose B';
         wrap.appendChild(this._playBtn);
+
+        wrap.appendChild(this._buildSpeedSlider());
         return wrap;
+    }
+    _buildSpeedSlider() {
+        const row = el('div', 'mn-slider-row');
+        const lbl = el('span', 'mn-slider-label');
+        lbl.textContent = 'Speed';
+        row.appendChild(lbl);
+
+        const val = el('span', 'mn-slider-value');
+        const initial = this.poses.speed ?? 1;
+        val.textContent = `${initial.toFixed(2)}x`;
+
+        const slider = document.createElement('input');
+        slider.type  = 'range';
+        slider.min   = 0.25;
+        slider.max   = 3;
+        slider.step  = 0.05;
+        slider.value = initial;
+        slider.classList.add('mn-slider');
+        slider.setAttribute('aria-label', 'Playback speed');
+
+        slider.addEventListener('input', () => {
+            const v = parseFloat(slider.value);
+            val.textContent = `${v.toFixed(2)}x`;
+            this.poses.setSpeed(v);
+        });
+
+        row.appendChild(slider);
+        row.appendChild(val);
+        this._speedSlider = { slider, valueLabel: val };
+        return row;
     }
     _buildProportionSection() {
         const wrap = el('div', 'mn-section');
@@ -159,8 +186,7 @@ export class UIController {
         wrap.appendChild(resetBtn);
         return wrap;
     }
-    //  TODO: Change Pose state → UI and insectStyle
-    _onPoseStateChange({ hasA, hasB, isPlaying }) {
+    _onPoseStateChange({ hasA, hasB, isPlaying, speed }) {
         if (!this._saveABtn) return;
 
         // Mark save buttons when a pose is captured
@@ -176,161 +202,12 @@ export class UIController {
         this._playBtn.disabled = !(hasA && hasB);
         this._playBtn.textContent = isPlaying ? 'Stop' : 'Play';
         this._playBtn.classList.toggle('mn-btn-playing', isPlaying);
-    }
-    _injectStyles() {
-        if (document.getElementById('mn-styles')) return; // already injected
-        const style = document.createElement('style');
-        style.id = 'mn-styles';
-        style.textContent = `
-            .mn-panel {
-                position: fixed;
-                top: 20px;
-                left: 20px;
-                z-index: 100;
-                width: 200px;
-                background: rgba(20, 20, 20, 0.88);
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
-                border: 0.5px solid rgba(255,255,255,0.12);
-                border-radius: 12px;
-                padding: 14px;
-                display: flex;
-                flex-direction: column;
-                gap: 0;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                font-size: 12px;
-                color: rgba(255,255,255,0.85);
-                user-select: none;
-            }
-            .mn-section {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                padding: 10px 0;
-            }
-            .mn-section:first-child { padding-top: 0; }
-            .mn-section:last-child  { padding-bottom: 0; }
-            .mn-label {
-                font-size: 10px;
-                font-weight: 600;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: rgba(255,255,255,0.4);
-            }
-            .mn-divider {
-                height: 0.5px;
-                background: rgba(255,255,255,0.10);
-                margin: 0;
-                flex-shrink: 0;
-            }
-            .mn-mode-pill {
-                display: inline-block;
-                padding: 3px 10px;
-                border-radius: 20px;
-                font-size: 11px;
-                font-weight: 600;
-                letter-spacing: 0.06em;
-                width: fit-content;
-                transition: background 0.15s, color 0.15s;
-            }
-            .mn-mode-pill[data-mode="fk"] {
-                background: rgba(255,255,255,0.10);
-                color: rgba(255,255,255,0.7);
-            }
-            .mn-mode-pill[data-mode="ik"] {
-                background: rgba(122, 244, 235, 0.18);
-                color: #7af4eb;
-            }
-            .mn-row {
-                display: flex;
-                gap: 6px;
-            }
-            .mn-btn {
-                flex: 1;
-                padding: 6px 8px;
-                background: rgba(255,255,255,0.07);
-                border: 0.5px solid rgba(255,255,255,0.15);
-                border-radius: 6px;
-                color: rgba(255,255,255,0.8);
-                font-size: 11px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: background 0.12s, border-color 0.12s, transform 0.08s;
-                white-space: nowrap;
-                text-align: center;
-            }
-            .mn-btn:hover:not(:disabled) {
-                background: rgba(255,255,255,0.13);
-                border-color: rgba(255,255,255,0.25);
-            }
-            .mn-btn:active:not(:disabled) {
-                transform: scale(0.97);
-            }
-            .mn-btn:disabled {
-                opacity: 0.35;
-                cursor: not-allowed;
-            }
-            .mn-btn-full {
-                width: 100%;
-            }
-            .mn-btn-saved {
-                border-color: rgba(122, 244, 235, 0.4);
-                color: #7af4eb;
-            }
-            .mn-btn-playing {
-                background: rgba(122, 244, 235, 0.12);
-                border-color: rgba(122, 244, 235, 0.5);
-                color: #7af4eb;
-            }
-            .mn-slider-row {
-                display: grid;
-                grid-template-columns: 44px 1fr 32px;
-                align-items: center;
-                gap: 6px;
-            }
-            .mn-slider-label {
-                font-size: 11px;
-                color: rgba(255,255,255,0.6);
-            }
-            .mn-slider-value {
-                font-size: 10px;
-                color: rgba(255,255,255,0.4);
-                text-align: right;
-                font-variant-numeric: tabular-nums;
-            }
-            .mn-slider {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 100%;
-                height: 3px;
-                background: rgba(255,255,255,0.15);
-                border-radius: 2px;
-                outline: none;
-                cursor: pointer;
-            }
-            .mn-slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                background: #7af4eb;
-                cursor: pointer;
-                transition: transform 0.1s;
-            }
-            .mn-slider::-webkit-slider-thumb:hover {
-                transform: scale(1.2);
-            }
-            .mn-slider::-moz-range-thumb {
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                background: #7af4eb;
-                border: none;
-                cursor: pointer;
-            }
-        `;
-        document.head.appendChild(style);
+
+        // Reflect speed changes that came from outside the slider (e.g. poses.import())
+        if (this._speedSlider && speed !== undefined && document.activeElement !== this._speedSlider.slider) {
+            this._speedSlider.slider.value = speed;
+            this._speedSlider.valueLabel.textContent = `${speed.toFixed(2)}x`;
+        }
     }
 }
 

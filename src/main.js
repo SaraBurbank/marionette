@@ -43,20 +43,33 @@ secondBody.addHairStrand('Head', 10, 10, {
     color:       '#7af4eb',
     attachAt:    'tail',
 });
-secondBody.addClothingChain('Chest', 8, 16, {
-    columns:     25,
-    width:       14,
+secondBody.addClothingChain('Chest', 4, 12, {
+    columns:     11,
+    width:       5,
     mass:        0.6,
     frictionAir: 0.05,
     stiffness:   0.03,
     spreadFactor:0.9,
-    color:       'rgba(197, 25, 25, 0.16)',
-    strokeColor: 'rgba(222, 26, 26, 0.35)',
+    color:       'rgba(197, 25, 25)',
     mask:        0,     // collisionFilter
     attachBones: [
-        { boneName: 'L_Shoulder', attachAt: 'tail' },
-        { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 12 } },
-        { boneName: 'R_Shoulder', attachAt: 'tail' },
+        { boneName: 'Chest', attachAt: 'tail', offset: { x: 20, y: 5 } },
+        { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 10 } },
+        { boneName: 'Chest', attachAt: 'tail', offset: { x: -20, y: 5 } },
+    ],
+});
+secondBody.addClothingChain('Hip', 6, 18, {
+    columns:     20,
+    width:       5,
+    mass:        0.6,
+    frictionAir: 0.05,
+    stiffness:   0.03,
+    spreadFactor:0.9,
+    color:       'rgba(84, 6, 6)',
+    mask:        0,     // collisionFilter
+    attachBones: [
+        { boneName: 'Spine', attachAt: 'center' , offset: { x: 15, y: 20 } },
+        { boneName: 'Spine', attachAt: 'center' , offset: { x: -15, y: 20 } },
     ],
 });
 
@@ -87,7 +100,9 @@ await rManager.init({
 });
 
 Events.on(render, 'afterRender', () => {
-    rManager.draw(render.context);
+    rManager.drawBehindClothing(render.context);
+    secondBody.drawClothing(render.context);
+    rManager.drawFrontOfClothing(render.context);
 });
 
 // Default expression overlay

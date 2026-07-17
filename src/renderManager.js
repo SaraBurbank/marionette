@@ -11,6 +11,12 @@ export class RendererManager {
     draw(ctx) {
         this._image.draw(ctx);
     }
+    drawBehindClothing(ctx) {
+        this._image.drawBehindClothing(ctx);
+    }
+    drawFrontOfClothing(ctx) {
+        this._image.drawFrontOfClothing(ctx);
+    }
     set debug(val) {
         this._image.debug = val;
     }

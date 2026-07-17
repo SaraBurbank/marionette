@@ -24,6 +24,11 @@ export class ImageCharacterRenderer {
         ];
         this._baseDepths = Object.fromEntries(this.drawOrder.map((name, i) => [name, i]));
 
+        this.frontLayerBones = options.frontLayerBones ?? [
+            'L_UpperArm', 'L_Forearm', 'L_Hand',
+            'R_UpperArm', 'R_Forearm', 'R_Hand',
+        ];
+
         this.expressionOverlays = {};
     }
     async loadDefaults(defaultParts = {}, pivots = {}) {
@@ -90,31 +95,47 @@ export class ImageCharacterRenderer {
         this.hair        = null;
         this._hairSlices = [];
     }
-    draw(ctx) {
+    draw(ctx) {     // no clothing attached
+        this.drawBehindClothing(ctx);
+        this.drawFrontOfClothing(ctx);
+    }
+    drawBehindClothing(ctx) {
         ctx.save();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
-        const ordered = Object.entries(this.parts).sort((a, b) => a[1].depth - b[1].depth);
-        for (const [boneName, part] of ordered) {
-            const bone = this._bone(boneName);
-            if (!bone) continue;
-            this._drawPart(ctx, bone, part);
-        }
-
-        // Expression overlays — drawn after all normal parts (so they sit
-        // on top of e.g. the neutral head), before hair.
-        this._drawExpressionOverlays(ctx);
-
-        // Draw hair last (on top of head)
+        // Hair drawn first so it sits behind the character
         this._drawHair(ctx);
+        this._drawOrderedParts(ctx, name => !this.frontLayerBones.includes(name));
+        this._drawExpressionOverlays(ctx, name => !this.frontLayerBones.includes(name));
+
+        ctx.restore();
+    }
+    drawFrontOfClothing(ctx) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        this._drawOrderedParts(ctx, name => this.frontLayerBones.includes(name));
+        this._drawExpressionOverlays(ctx, name => this.frontLayerBones.includes(name));
 
         if (this.debug) this.skeleton.drawBones(ctx);
 
         ctx.restore();
     }
-    _drawExpressionOverlays(ctx) {
+    _drawOrderedParts(ctx, filterFn) {
+        const ordered = Object.entries(this.parts)
+            .filter(([boneName]) => filterFn(boneName))
+            .sort((a, b) => a[1].depth - b[1].depth);
+        for (const [boneName, part] of ordered) {
+            const bone = this._bone(boneName);
+            if (!bone) continue;
+            this._drawPart(ctx, bone, part);
+        }
+    }
+    _drawExpressionOverlays(ctx, filterFn = () => true) {
         for (const [boneName, overlay] of Object.entries(this.expressionOverlays)) {
+            if (!filterFn(boneName)) continue;
             const bone = this._bone(boneName);
             if (!bone) continue;
 

@@ -1,8 +1,4 @@
-/**
- * todo: change pose system to have save pose to a list of poses
- * USAGE:
- *   const poses = new PoseManager(skeleton, ikSolver);
- */
+// todo: change pose system to have save pose to a list of poses
 export class PoseManager {
     constructor(skeleton, ikSolver, options = {}) {
         this.skeleton = skeleton;
@@ -12,6 +8,7 @@ export class PoseManager {
         this.ease = options.ease;
         this.pingPong = options.pingPong;
         this.holdTime = options.holdTime;
+        this.speed = options.speed ?? 1;   // playback speed multiplier (1 = normal)
 
         this._originalPose = this._capture();
         this._poseA = null;    // { boneName: localAngle }
@@ -67,6 +64,14 @@ export class PoseManager {
     onUserDrag() {
         if (this._playing) this.stop();
     }
+    setSpeed(multiplier) {
+        // Clamp to something sane so 0 or negative values can't freeze/reverse-break GSAP
+        this.speed = Math.max(0.05, multiplier);
+        if (this._tween) {
+            this._tween.timeScale(this.speed);
+        }
+        this._notify();
+    }
     _playOneWay() {
         // Apply Pose A immediately, then tween to Pose B
         this._applyPose(this._poseA);
@@ -79,6 +84,7 @@ export class PoseManager {
             onUpdate:   () => this._flushTweenTargets(targets),
             onComplete: () => this._onPlaybackEnd(),
         }));
+        this._tween.timeScale(this.speed);
     }
     _playPingPong() {
         // A → B, pause, B → A, pause, repeat
@@ -94,8 +100,10 @@ export class PoseManager {
                     if (!this._playing) return;
                     // Hold at B, then tween back to A
                     this._tween = gsap.delayedCall(this.holdTime, toA);
+                    this._tween.timeScale(this.speed);
                 },
             }));
+            this._tween.timeScale(this.speed);
         };
         const toA = () => {
             if (!this._playing) return;
@@ -110,8 +118,10 @@ export class PoseManager {
                     if (!this._playing) return;
                     // Hold at A, then loop back to B
                     this._tween = gsap.delayedCall(this.holdTime, toB);
+                    this._tween.timeScale(this.speed);
                 },
             }));
+            this._tween.timeScale(this.speed);
         };
         toB();
     }
@@ -183,11 +193,12 @@ export class PoseManager {
         }
     }
     export() {
-        return { poseA: this._poseA, poseB: this._poseB };
+        return { poseA: this._poseA, poseB: this._poseB, speed: this.speed };
     }
     import(data) {
         this._poseA = data.poseA ?? null;
         this._poseB = data.poseB ?? null;
+        this.speed = data.speed ?? this.speed;
         this._notify();
     }
     _notify() {
@@ -196,6 +207,7 @@ export class PoseManager {
                 hasA:      this.hasA,
                 hasB:      this.hasB,
                 isPlaying: this.isPlaying,
+                speed:     this.speed,
             });
         }
     }
