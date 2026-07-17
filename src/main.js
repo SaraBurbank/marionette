@@ -34,15 +34,30 @@ skeleton.update();
 
 // Secondary bodies
 const secondBody = new SecondBodyLayer(world, skeleton, engine, Matter);
-// hair
-secondBody.addHairStrand('Head', 10, 10, {
-    radius:      4,
-    mass:        0.2,
-    frictionAir: 0.10,
-    stiffness:   0.5,
-    color:       '#7af4eb',
-    attachAt:    'tail',
-});
+const hairStrands = [
+    { x: -11, segments: 9,  stiffness: 0.55 },
+    { x: -9,  segments: 8,  stiffness: 0.52 },
+    { x: -7,  segments: 10, stiffness: 0.50 },
+    { x: -5,  segments: 10, stiffness: 0.48 },
+    { x: -2,  segments: 11, stiffness: 0.46 },
+    { x: 0,   segments: 11, stiffness: 0.45 },
+    { x: 2,   segments: 11, stiffness: 0.46 },
+    { x: 5,   segments: 10, stiffness: 0.48 },
+    { x: 7,   segments: 10, stiffness: 0.50 },
+    { x: 9,   segments: 8,  stiffness: 0.52 },
+    { x: 11,  segments: 9,  stiffness: 0.55 },
+];
+for (const strand of hairStrands) {
+    secondBody.addHairStrand('Head', strand.segments, 10, {
+        radius:      4,
+        mass:        0.2,
+        frictionAir: 0.10,
+        stiffness:   strand.stiffness,
+        color:       '#7af4eb',
+        attachAt:    'tail',
+        offset:      { x: strand.x, y: 0 },
+    });
+}
 secondBody.addClothingChain('Chest', 4, 12, {
     columns:     11,
     width:       5,
@@ -51,7 +66,6 @@ secondBody.addClothingChain('Chest', 4, 12, {
     stiffness:   0.03,
     spreadFactor:0.9,
     color:       'rgba(197, 25, 25)',
-    mask:        0,     // collisionFilter
     attachBones: [
         { boneName: 'Chest', attachAt: 'tail', offset: { x: 20, y: 5 } },
         { boneName: 'Chest', attachAt: 'tail', offset: { x: 0, y: 10 } },
@@ -66,7 +80,6 @@ secondBody.addClothingChain('Hip', 6, 18, {
     stiffness:   0.03,
     spreadFactor:0.9,
     color:       'rgba(84, 6, 6)',
-    mask:        0,     // collisionFilter
     attachBones: [
         { boneName: 'Spine', attachAt: 'center' , offset: { x: 15, y: 20 } },
         { boneName: 'Spine', attachAt: 'center' , offset: { x: -15, y: 20 } },
@@ -100,6 +113,7 @@ await rManager.init({
 });
 
 Events.on(render, 'afterRender', () => {
+    secondBody.drawHair(render.context);
     rManager.drawBehindClothing(render.context);
     secondBody.drawClothing(render.context);
     rManager.drawFrontOfClothing(render.context);

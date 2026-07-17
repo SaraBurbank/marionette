@@ -8,66 +8,7 @@ export class SecondBodyLayer {
         this.Matter   = MatterRef;
         this._elements = [];    // list of secondary elements        
     }
-    addHairStrand(boneName, segments, segmentLen, options = {}) {
-        const cfg = {
-            radius:      options.radius,
-            mass:        options.mass,       
-            frictionAir: options.frictionAir,      
-            stiffness:   options.stiffness,       
-            color:       options.color,
-            attachAt:    options.attachAt,
-            ...options,
-        };
-
-        const bone    = this.skeleton.getBone(boneName);
-        const startPt = this._getBoneAttachPoint(bone, cfg.attachAt);
-        const anchor = this._makeAnchor(startPt.x, startPt.y);
-        const bodies = [];
-        const constraints = [];
-
-        for (let i = 0; i < segments; i++) {
-            const body = this.Matter.Bodies.circle(
-                startPt.x,
-                startPt.y + (i + 1) * segmentLen,
-                cfg.radius,
-                {
-                    mass:        cfg.mass,
-                    frictionAir: cfg.frictionAir,
-                    friction:    0.1,
-                    restitution: 0.1,
-                    collisionFilter: { mask: 0 }, // no collisions with skeleton
-                    render: {
-                        fillStyle:   cfg.color,
-                        strokeStyle: cfg.color,
-                        lineWidth:   1,
-                    }
-                }
-            );
-            bodies.push(body);
-
-            // constrain between this and previous segment
-            const bodyA = i === 0 ? anchor : bodies[i - 1];
-            constraints.push(this.Matter.Constraint.create({
-                bodyA,
-                bodyB:     body,
-                length:    segmentLen,
-                stiffness: cfg.stiffness,
-                damping:   cfg.damping ?? 0.05,
-                render:    {
-                    visible:     true,
-                    strokeStyle: cfg.color,
-                    lineWidth:   cfg.radius * 2,
-                    anchors:     false,
-                }
-            }));
-        }
-
-        this.Matter.Composite.add(this.world, [anchor, ...bodies, ...constraints]);
-
-        const element = { type: 'hair', boneName, anchor, bodies, constraints, cfg };
-        this._elements.push(element);
-        return element;
-    }
+    // ----- Clothing -----
     addClothingChain(boneName, segments, segmentLen, options = {}) {
         // Cloth mesh helper (segments -> rows, segmentLen -> row gap)
         const cfg = {
@@ -92,9 +33,9 @@ export class SecondBodyLayer {
             mass: cfg.mass,
             frictionAir: 0.06,
             collisionFilter: { mask: options.mask },
-            render: { visible: false, fillStyle: cfg.color, strokeStyle: cfg.color, lineWidth: 1 }
+            render: { visible: false, fillStyle: cfg.color, strokeStyle: cfg.strokeColor, lineWidth: 1 }
         };
-        const constraintOptions = { stiffness: cfg.stiffness, damping: cfg.damping ?? 0.1, render: { visible: false, type: 'line', anchors: false, strokeStyle: cfg.color } };
+        const constraintOptions = { stiffness: cfg.stiffness, damping: cfg.damping ?? 0.1, render: { visible: false, type: 'line', anchors: false, strokeStyle: cfg.strokeColor } };
 
         const cloth = Cloth(topRowPositions[0].x, topRowPositions[0].y, cfg.columns, cfg.rows, cfg.columnGap, cfg.rowGap, true, cfg.particleRadius, particleOptions, constraintOptions, this.Matter);
 
@@ -144,26 +85,6 @@ export class SecondBodyLayer {
         const element = { type: 'clothing', boneName, cloth, anchors, anchorsToCloth, cfg };
         this._elements.push(element);
         return element;
-    }
-    update() {
-        for (const el of this._elements) {
-            const bone = this.skeleton.getBone(el.boneName);
-            const attachPt = this._getBoneAttachPoint(bone, el.cfg.attachAt || 'tail');
-
-            if (el.type === 'hair') {
-                // hair anchors follow single attach point
-                this.Matter.Body.setPosition(el.anchor, { x: attachPt.x, y: attachPt.y });
-                continue;
-            }
-
-            if (el.type === 'clothing') {
-                const topRowPositions = this._computeClothingAnchorPositions(el);
-                for (let c = 0; c < el.cfg.columns; c++) {
-                    this.Matter.Body.setPosition(el.anchors[c], topRowPositions[c]);
-                }
-                continue;
-            }
-        }
     }
     drawClothing(ctx) {
         for (const el of this._elements) {
@@ -225,6 +146,144 @@ export class SecondBodyLayer {
         ctx.stroke();
 
         ctx.restore();
+    }
+    // ----- Hair -----
+    drawHair(ctx) {
+        for (const el of this._elements) {
+            if (el.type === 'hair') this._drawHairStrand(ctx, el);
+        }
+    }
+     _drawHairStrand(ctx, el) {
+        const { anchor, bodies, cfg } = el;
+        const points = [anchor.position, ...bodies.map(b => b.position)];
+        if (points.length < 2) return;
+ 
+        const baseWidth = (cfg.radius ?? 4) * 2.4;
+ 
+        const ribbon = new Path2D();
+        for (let i = 0; i < points.length - 1; i++) {
+            const a = points[i];
+            const b = points[i + 1];
+            const dir = this._normalize({ x: b.x - a.x, y: b.y - a.y });
+            const normal = { x: -dir.y, y: dir.x };
+ 
+            // Taper from full width at the scalp to a point at the tip.
+            const tA = 1 - i / (points.length - 1);
+            const tB = 1 - (i + 1) / (points.length - 1);
+            const wA = Math.max(baseWidth * tA, 0.6);
+            const wB = Math.max(baseWidth * tB, 0.6);
+ 
+            const aL = { x: a.x + normal.x * wA * 0.5, y: a.y + normal.y * wA * 0.5 };
+            const aR = { x: a.x - normal.x * wA * 0.5, y: a.y - normal.y * wA * 0.5 };
+            const bL = { x: b.x + normal.x * wB * 0.5, y: b.y + normal.y * wB * 0.5 };
+            const bR = { x: b.x - normal.x * wB * 0.5, y: b.y - normal.y * wB * 0.5 };
+ 
+            ribbon.moveTo(aL.x, aL.y);
+            ribbon.lineTo(bL.x, bL.y);
+            ribbon.lineTo(bR.x, bR.y);
+            ribbon.closePath();
+ 
+            ribbon.moveTo(aL.x, aL.y);
+            ribbon.lineTo(bR.x, bR.y);
+            ribbon.lineTo(aR.x, aR.y);
+            ribbon.closePath();
+        }
+ 
+        ctx.save();
+        ctx.fillStyle = cfg.color;
+        ctx.fill(ribbon);
+ 
+        // Soft highlight down the centerline for a bit of sheen.
+        ctx.strokeStyle = cfg.highlightColor ?? 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = Math.max(baseWidth * 0.18, 1);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.stroke();
+ 
+        ctx.restore();
+    }
+    addHairStrand(boneName, segments, segmentLen, options = {}) {
+        const cfg = {
+            radius:      options.radius,
+            mass:        options.mass,       
+            frictionAir: options.frictionAir,      
+            stiffness:   options.stiffness,       
+            color:       options.color,
+            attachAt:    options.attachAt,
+            ...options,
+        };
+
+        const bone    = this.skeleton.getBone(boneName);
+        const startPt = this._applyOffset(this._getBoneAttachPoint(bone, cfg.attachAt), cfg.offset);
+        const anchor = this._makeAnchor(startPt.x, startPt.y);
+        const bodies = [];
+        const constraints = [];
+
+        for (let i = 0; i < segments; i++) {
+            const body = this.Matter.Bodies.circle(
+                startPt.x,
+                startPt.y + (i + 1) * segmentLen,
+                cfg.radius,
+                {
+                    mass:        cfg.mass,
+                    frictionAir: cfg.frictionAir,
+                    friction:    0.1,
+                    restitution: 0.1,
+                    collisionFilter: { mask: 0 }, // no collisions with skeleton
+                    render: {
+                        visible:     false,
+                        fillStyle:   cfg.color,
+                        strokeStyle: cfg.color,
+                        lineWidth:   1,
+                    }
+                }
+            );
+            bodies.push(body);
+
+            // constrain between this and previous segment
+            const bodyA = i === 0 ? anchor : bodies[i - 1];
+            constraints.push(this.Matter.Constraint.create({
+                bodyA,
+                bodyB:     body,
+                length:    segmentLen,
+                stiffness: cfg.stiffness,
+                damping:   cfg.damping ?? 0.05,
+                render:    {
+                    visible:     false,
+                    strokeStyle: cfg.color,
+                    lineWidth:   cfg.radius * 2,
+                    anchors:     false,
+                }
+            }));
+        }
+
+        this.Matter.Composite.add(this.world, [anchor, ...bodies, ...constraints]);
+
+        const element = { type: 'hair', boneName, anchor, bodies, constraints, cfg };
+        this._elements.push(element);
+        return element;
+    }
+     update() {
+        for (const el of this._elements) {
+            const bone = this.skeleton.getBone(el.boneName);
+            const attachPt = this._getBoneAttachPoint(bone, el.cfg.attachAt || 'tail');
+
+            if (el.type === 'hair') {
+                const offsetPt = this._applyOffset(attachPt, el.cfg.offset);
+                this.Matter.Body.setPosition(el.anchor, { x: offsetPt.x, y: offsetPt.y });
+                continue;
+            }
+
+            if (el.type === 'clothing') {
+                const topRowPositions = this._computeClothingAnchorPositions(el);
+                for (let c = 0; c < el.cfg.columns; c++) {
+                    this.Matter.Body.setPosition(el.anchors[c], topRowPositions[c]);
+                }
+                continue;
+            }
+        }
     }
     _makeAnchor(x, y) {
         return this.Matter.Bodies.circle(x, y, 2, {
@@ -305,6 +364,10 @@ export class SecondBodyLayer {
             return { x: bone.worldX, y: bone.worldY };
         }
         return { x: bone.tailX, y: bone.tailY };
+    }
+     _applyOffset(pt, offset) {
+        if (!offset) return pt;
+        return { x: pt.x + offset.x, y: pt.y + offset.y };
     }
     clear() {       // reset
         for (const el of this._elements) {
