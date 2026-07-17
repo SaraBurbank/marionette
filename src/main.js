@@ -137,12 +137,7 @@ const poses = new PoseManager(skeleton, ikSolver, {
     holdTime:  0.3,     // Pause at each end (seconds) when pingPong
 });
  
-// Stop playback if the user starts dragging
-const _origOnDown = input._onDown.bind(input);
-input._onDown = function(e) {
-    poses.onUserDrag();
-    _origOnDown(e);
-};
+input.onDragStart = () => poses.onUserDrag();
 
 // Proportion controller
 const proportions = new ProportionController(skeleton);

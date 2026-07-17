@@ -14,6 +14,7 @@ export class InputHandler {
         this._dragStartY = 0;
         this._dragThreshold = 8;
         this.sensitivity = 100; // mouse drag sensitivity -> lower = more sensitive
+        this.onDragStart = null;
         
         this._effectorMap = {};
         this._bindEvents();
@@ -45,6 +46,10 @@ export class InputHandler {
         return angle;
     }
     _onDown(e) {
+        if (typeof this.onDragStart === 'function') {
+            this.onDragStart();
+        }
+
         this._isDown = true;
         const { x, y } = this._getPos(e);
         this._lastX = x;
