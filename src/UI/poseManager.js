@@ -2,14 +2,7 @@
  * todo: change pose system to have save pose to a list of poses
  * USAGE:
  *   const poses = new PoseManager(skeleton, ikSolver);
- *
- *   poses.saveA();          // capture current skeleton state as Pose A
- *   poses.saveB();          // capture as Pose B
- *   poses.play();           // tween A → B → A (or one-way — see options)
- *   poses.stop();           // cancel active tween, keep current angles
- *
  */
-
 export class PoseManager {
     constructor(skeleton, ikSolver, options = {}) {
         this.skeleton = skeleton;
@@ -80,12 +73,12 @@ export class PoseManager {
         this.skeleton.update();
 
         const targets = this._buildTweenTargets(this._poseB);
-        this._tween = gsap.to(targets, {
+        this._tween = gsap.to(targets, this._tweenVars(targets, this._poseB, {
             duration:   this.duration,
             ease:       this.ease,
             onUpdate:   () => this._flushTweenTargets(targets),
             onComplete: () => this._onPlaybackEnd(),
-        });
+        }));
     }
     _playPingPong() {
         // A → B, pause, B → A, pause, repeat
@@ -93,7 +86,7 @@ export class PoseManager {
             this._applyPose(this._poseA);
             this.skeleton.update();
             const targets = this._buildTweenTargets(this._poseB);
-            this._tween = gsap.to(targets, {
+            this._tween = gsap.to(targets, this._tweenVars(targets, this._poseB, {
                 duration:   this.duration,
                 ease:       this.ease,
                 onUpdate:   () => this._flushTweenTargets(targets),
@@ -102,14 +95,14 @@ export class PoseManager {
                     // Hold at B, then tween back to A
                     this._tween = gsap.delayedCall(this.holdTime, toA);
                 },
-            });
+            }));
         };
         const toA = () => {
             if (!this._playing) return;
             this._applyPose(this._poseB);
             this.skeleton.update();
             const targets = this._buildTweenTargets(this._poseA);
-            this._tween = gsap.to(targets, {
+            this._tween = gsap.to(targets, this._tweenVars(targets, this._poseA, {
                 duration:   this.duration,
                 ease:       this.ease,
                 onUpdate:   () => this._flushTweenTargets(targets),
@@ -118,7 +111,7 @@ export class PoseManager {
                     // Hold at A, then loop back to B
                     this._tween = gsap.delayedCall(this.holdTime, toB);
                 },
-            });
+            }));
         };
         toB();
     }
@@ -146,20 +139,26 @@ export class PoseManager {
     }
     _buildTweenTargets(toPose) {
         const proxy = {};
-        for (const [name, targetAngle] of Object.entries(toPose)) {
+        for (const name of Object.keys(toPose)) {
             try {
                 const bone = this.skeleton.getBone(name);
-                proxy[name] = bone.localAngle;       // start value (current)
-                proxy[`_target_${name}`] = targetAngle; // end value (stored for reference)
-            } catch { 
+                proxy[name] = bone.localAngle; // start value (current)
+            } catch {
                 console.log(`Bone ${name} not found`);
-             }
+            }
         }
         return proxy;
     }
+    _tweenVars(targets, toPose, extra) {
+        // End values, limited to the bones we actually resolved a start value for.
+        const endValues = {};
+        for (const name of Object.keys(targets)) {
+            endValues[name] = toPose[name];
+        }
+        return { ...endValues, ...extra };
+    }
     _flushTweenTargets(targets) {
         for (const [key, value] of Object.entries(targets)) {
-            if (key.startsWith('_target_')) continue;
             try {
                 const bone = this.skeleton.getBone(key);
                 bone.localAngle = value;

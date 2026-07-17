@@ -1,25 +1,12 @@
+import { JOINT_LIMITS } from './jointLimits.js';
+
 export class IKSolver {
     constructor (skeleton) {
         this.skeleton = skeleton;
         this.tolerance = 1.0;
         this.maxIterations = 20; // iterations per frame per chain (higher = slower)
         this.blendFactor = 0.5; // smooth IK transitions
-        this.constraintDefaults = {
-            R_Shoulder: { min: 0, max: Math.PI * 0.9 },
-            R_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
-            R_Forearm:  { min: 0.1, max: Math.PI * 0.95 },
-            L_Shoulder: { min: -Math.PI * 0.9, max: 0 },
-            L_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
-            L_Forearm:  { min: -Math.PI * 0.95, max: -0.1 },
-            R_Hip:      { min: -1.2, max: 1.0 },
-            R_UpperLeg: { min: -1.0, max: 0.8 },
-            R_Shin:     { min: -2.0, max: -0.1 },
-            L_Hip:      { min: -1.0, max: 1.2 },
-            L_UpperLeg: { min: -0.8, max: 1.0 },
-            L_Shin:     { min: 0.1, max: 2.0 },
-            Neck:       { min: -0.35, max: 0.35 },
-            Head:       { min: -0.6, max: 0.6 },
-        };
+        this.constraintDefaults = JOINT_LIMITS;
         this.targets = [];
     }
     addTarget(boneName, rootName, constraints = {}) {
@@ -181,8 +168,5 @@ export class IKSolver {
         const min = constraint.min ?? -Math.PI;
         const max = constraint.max ?? Math.PI;
         return Math.max(min, Math.min(max, this._normalizeAngle(angle)));
-    }
-    chainLength(chain) {
-        return chain.reduce((sum, bone) => sum + bone.length, 0);
     }
 }

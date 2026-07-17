@@ -1,10 +1,11 @@
 import { Cloth } from './cloth.js';
 
 export class SecondBodyLayer {
-    constructor(world, skeleton, engine) {
+    constructor(world, skeleton, engine, MatterRef = Matter) {
         this.world    = world;
         this.skeleton = skeleton;
         this.engine   = engine;
+        this.Matter   = MatterRef; // injected so this class can be unit-tested with a mock/stub
         this._elements = [];    // list of secondary elements        
     }
     addHairStrand(boneName, segments, segmentLen, options = {}) {
@@ -25,7 +26,7 @@ export class SecondBodyLayer {
         const constraints = [];
 
         for (let i = 0; i < segments; i++) {
-            const body = Matter.Bodies.circle(
+            const body = this.Matter.Bodies.circle(
                 startPt.x,
                 startPt.y + (i + 1) * segmentLen,
                 cfg.radius,
@@ -46,7 +47,7 @@ export class SecondBodyLayer {
 
             // constrain between this and previous segment
             const bodyA = i === 0 ? anchor : bodies[i - 1];
-            constraints.push(Matter.Constraint.create({
+            constraints.push(this.Matter.Constraint.create({
                 bodyA,
                 bodyB:     body,
                 length:    segmentLen,
@@ -61,7 +62,7 @@ export class SecondBodyLayer {
             }));
         }
 
-        Matter.Composite.add(this.world, [anchor, ...bodies, ...constraints]);
+        this.Matter.Composite.add(this.world, [anchor, ...bodies, ...constraints]);
 
         const element = { type: 'hair', boneName, anchor, bodies, constraints, cfg };
         this._elements.push(element);
@@ -95,7 +96,7 @@ export class SecondBodyLayer {
         };
         const constraintOptions = { stiffness: cfg.stiffness, render: { type: 'line', anchors: false, strokeStyle: cfg.strokeColor } };
 
-        const cloth = Cloth(topRowPositions[0].x, topRowPositions[0].y, cfg.columns, cfg.rows, cfg.columnGap, cfg.rowGap, true, cfg.particleRadius, particleOptions, constraintOptions);
+        const cloth = Cloth(topRowPositions[0].x, topRowPositions[0].y, cfg.columns, cfg.rows, cfg.columnGap, cfg.rowGap, true, cfg.particleRadius, particleOptions, constraintOptions, this.Matter);
 
         const first = topRowPositions[0];
         const last = topRowPositions[topRowPositions.length - 1];
@@ -115,7 +116,7 @@ export class SecondBodyLayer {
                 const flareOffset = ((c - (cfg.columns - 1) * 0.5) * cfg.columnGap) * (rowScale - 1);
                 const newX = anchor.x + normal.x * cfg.rowGap * r + tangent.x * flareOffset;
                 const newY = anchor.y + normal.y * cfg.rowGap * r + tangent.y * flareOffset;
-                Matter.Body.setPosition(p, { x: newX, y: newY });
+                this.Matter.Body.setPosition(p, { x: newX, y: newY });
             }
         }
 
@@ -125,7 +126,7 @@ export class SecondBodyLayer {
             const particle = cloth.bodies[c];
             const anchorPos = topRowPositions[c];
             const a = this._makeAnchor(anchorPos.x, anchorPos.y);
-            const con = Matter.Constraint.create({
+            const con = this.Matter.Constraint.create({
                 bodyA: a,
                 pointA: { x: 0, y: 0 },
                 bodyB: particle,
@@ -138,7 +139,7 @@ export class SecondBodyLayer {
             anchorsToCloth.push(con);
         }
 
-        Matter.Composite.add(this.world, [cloth, ...anchors, ...anchorsToCloth]);
+        this.Matter.Composite.add(this.world, [cloth, ...anchors, ...anchorsToCloth]);
 
         const element = { type: 'clothing', boneName, cloth, anchors, anchorsToCloth, cfg };
         this._elements.push(element);
@@ -151,21 +152,21 @@ export class SecondBodyLayer {
 
             if (el.type === 'hair') {
                 // hair anchors follow single attach point
-                Matter.Body.setPosition(el.anchor, { x: attachPt.x, y: attachPt.y });
+                this.Matter.Body.setPosition(el.anchor, { x: attachPt.x, y: attachPt.y });
                 continue;
             }
 
             if (el.type === 'clothing') {
                 const topRowPositions = this._computeClothingAnchorPositions(el);
                 for (let c = 0; c < el.cfg.columns; c++) {
-                    Matter.Body.setPosition(el.anchors[c], topRowPositions[c]);
+                    this.Matter.Body.setPosition(el.anchors[c], topRowPositions[c]);
                 }
                 continue;
             }
         }
     }
     _makeAnchor(x, y) {
-        return Matter.Bodies.circle(x, y, 2, {
+        return this.Matter.Bodies.circle(x, y, 2, {
             isStatic: true, 
             render:   { visible: false },
             collisionFilter: { mask: 0 },
@@ -247,13 +248,13 @@ export class SecondBodyLayer {
     clear() {       // reset
         for (const el of this._elements) {
             if (el.type === 'hair') {
-                Matter.Composite.remove(this.world, el.anchor);
-                el.bodies.forEach(b => Matter.Composite.remove(this.world, b));
-                el.constraints.forEach(c => Matter.Composite.remove(this.world, c));
+                this.Matter.Composite.remove(this.world, el.anchor);
+                el.bodies.forEach(b => this.Matter.Composite.remove(this.world, b));
+                el.constraints.forEach(c => this.Matter.Composite.remove(this.world, c));
             } else if (el.type === 'clothing') {
-                Matter.Composite.remove(this.world, el.cloth);
-                el.anchors.forEach(a => Matter.Composite.remove(this.world, a));
-                el.anchorsToCloth.forEach(c => Matter.Composite.remove(this.world, c));
+                this.Matter.Composite.remove(this.world, el.cloth);
+                el.anchors.forEach(a => this.Matter.Composite.remove(this.world, a));
+                el.anchorsToCloth.forEach(c => this.Matter.Composite.remove(this.world, c));
             }
         }
         this._elements = [];

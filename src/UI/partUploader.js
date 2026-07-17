@@ -113,17 +113,9 @@ export class PartUploader {
 
         return group;
     }
-    _buildSlot({ boneName, label: labelText }) {
-        const row = el('div', 'pu-slot');
-
-        // Label
-        const lbl = el('span', 'pu-slot-label');
-        lbl.textContent = labelText;
-        row.appendChild(lbl);
-
-        // Drop zone / file input
+    _buildUploadZone({ title, onFile }) {
         const zone = el('div', 'pu-zone');
-        zone.title = `Upload ${labelText} image`;
+        if (title) zone.title = title;
 
         const input = document.createElement('input');
         input.type   = 'file';
@@ -148,23 +140,37 @@ export class PartUploader {
             e.preventDefault();
             zone.classList.remove('pu-zone-drag');
             const file = e.dataTransfer.files[0];
-            if (file) this._loadFile(file, boneName, zone, pivotCanvas, rotateBtn);
+            if (file) onFile(file, zone);
         });
 
         // File input change
         input.addEventListener('change', () => {
-            if (input.files[0]) this._loadFile(input.files[0], boneName, zone, pivotCanvas, rotateBtn);
+            if (input.files[0]) onFile(input.files[0], zone);
         });
 
-        row.appendChild(zone);
+        return zone;
+    }
+    _buildSlot({ boneName, label: labelText }) {
+        const row = el('div', 'pu-slot');
 
-        // Pivot editor canvas (shown after image upload)
+        // Label
+        const lbl = el('span', 'pu-slot-label');
+        lbl.textContent = labelText;
+        row.appendChild(lbl);
+        
         const pivotCanvas = document.createElement('canvas');
         pivotCanvas.className = 'pu-pivot-canvas';
         pivotCanvas.width  = 48;
         pivotCanvas.height = 48;
         pivotCanvas.title  = 'Click to set pivot point (joint origin)';
         pivotCanvas.style.display = 'none';
+
+        // Drop zone / file input
+        const zone = this._buildUploadZone({
+            title: `Upload ${labelText} image`,
+            onFile: (file, zone) => this._loadFile(file, boneName, zone, pivotCanvas),
+        });
+        row.appendChild(zone);
 
         // Initialize pivot to default
         this._pivots[boneName] = { pivotX: 0.5, pivotY: 0.05 };
@@ -209,28 +215,8 @@ export class PartUploader {
         hairLabel.textContent = 'Hair image';
         hairRow.appendChild(hairLabel);
 
-        const zone = el('div', 'pu-zone');
-        const input = document.createElement('input');
-        input.type   = 'file';
-        input.accept = 'image/png,image/webp,image/jpeg';
-        input.style.display = 'none';
-        zone.appendChild(input);
-
-        const zoneLabel = el('span', 'pu-zone-label');
-        zoneLabel.textContent = '+';
-        zone.appendChild(zoneLabel);
-
-        zone.addEventListener('click', () => input.click());
-        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('pu-zone-drag'); });
-        zone.addEventListener('dragleave', () => zone.classList.remove('pu-zone-drag'));
-        zone.addEventListener('drop', e => {
-            e.preventDefault();
-            zone.classList.remove('pu-zone-drag');
-            const file = e.dataTransfer.files[0];
-            if (file) this._loadHairFile(file, zone, parseInt(segInput.value));
-        });
-        input.addEventListener('change', () => {
-            if (input.files[0]) this._loadHairFile(input.files[0], zone, parseInt(segInput.value));
+        const zone = this._buildUploadZone({
+            onFile: (file, zone) => this._loadHairFile(file, zone, parseInt(segInput.value)),
         });
 
         // Re-slice if segment count changes while hair is loaded
@@ -263,30 +249,9 @@ export class PartUploader {
         label.textContent = 'Alert face';
         row.appendChild(label);
 
-        const zone = el('div', 'pu-zone');
-        zone.title = 'Upload an "alert/moving" face image';
-
-        const input = document.createElement('input');
-        input.type   = 'file';
-        input.accept = 'image/png,image/webp,image/jpeg';
-        input.style.display = 'none';
-        zone.appendChild(input);
-
-        const zoneLabel = el('span', 'pu-zone-label');
-        zoneLabel.textContent = '+';
-        zone.appendChild(zoneLabel);
-
-        zone.addEventListener('click', () => input.click());
-        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('pu-zone-drag'); });
-        zone.addEventListener('dragleave', () => zone.classList.remove('pu-zone-drag'));
-        zone.addEventListener('drop', e => {
-            e.preventDefault();
-            zone.classList.remove('pu-zone-drag');
-            const file = e.dataTransfer.files[0];
-            if (file) this._loadExpressionFile(file, zone);
-        });
-        input.addEventListener('change', () => {
-            if (input.files[0]) this._loadExpressionFile(input.files[0], zone);
+        const zone = this._buildUploadZone({
+            title: 'Upload an "alert/moving" face image',
+            onFile: (file, zone) => this._loadExpressionFile(file, zone),
         });
 
         row.appendChild(zone);

@@ -1,6 +1,6 @@
 import { Skeleton } from "./body/skeleton.js";
-import { IKSolver } from "./IKSolver.js";
-import { InputHandler } from "./inputHandler.js";
+import { IKSolver } from "./logic/IKSolver.js";
+import { InputHandler } from "./logic/inputHandler.js";
 import { SecondBodyLayer } from "./body/secondBody.js";
 import { PartUploader } from "./UI/partUploader.js";
 import { PoseManager } from "./UI/poseManager.js";
@@ -33,7 +33,7 @@ const skeleton = new Skeleton(window.innerWidth / 2, window.innerHeight / 2);
 skeleton.update();
 
 // Secondary bodies
-const secondBody = new SecondBodyLayer(world, skeleton, engine);
+const secondBody = new SecondBodyLayer(world, skeleton, engine, Matter);
 // hair
 secondBody.addHairStrand('Head', 10, 10, {
     radius:      4,
@@ -90,9 +90,7 @@ Events.on(render, 'afterRender', () => {
     rManager.draw(render.context);
 });
 
-// Default expression overlay — the alert/moving face image, faded in over
-// the neutral Head image as Head.velocity rises. See setExpressionOverlay()
-// in ImageCharacterRenderer for how the crossfade works.
+// Default expression overlay
 const alertFace = new Image();
 alertFace.onload = () => {
     rManager.imageRenderer.setExpressionOverlay('Head', alertFace, {
@@ -114,30 +112,11 @@ uploader.mount();
 // IK chains
 const ikSolver = new IKSolver(skeleton);
 const ikTargets = {
-    rHand: ikSolver.addTarget('R_Hand', 'R_Shoulder', {
-        R_Shoulder: { min: 0, max: Math.PI * 0.9 },
-        R_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
-        R_Forearm: { min: 0.1, max: Math.PI * 0.95 },
-    }),
-    lHand: ikSolver.addTarget('L_Hand', 'L_Shoulder', {
-        L_Shoulder: { min: -Math.PI * 0.9, max: 0 },
-        L_UpperArm: { min: -Math.PI * 0.6, max: Math.PI * 0.6 },
-        L_Forearm: { min: -Math.PI * 0.95, max: -0.1 },
-    }),
-    rFoot: ikSolver.addTarget('R_Foot', 'R_Hip', {
-        R_Hip: { min: -1.2, max: 1.0 },
-        R_UpperLeg: { min: -1.0, max: 0.8 },
-        R_Shin: { min: -2.0, max: -0.1 },
-    }),
-    lFoot: ikSolver.addTarget('L_Foot', 'L_Hip', {
-        L_Hip: { min: -1.0, max: 1.2 },
-        L_UpperLeg: { min: -0.8, max: 1.0 },
-        L_Shin: { min: 0.1, max: 2.0 },
-    }),
-    head: ikSolver.addTarget('Head', 'Neck', {
-        Neck: { min: -0.35, max: 0.35 },
-        Head: { min: -0.6, max: 0.6 },
-    }),
+    rHand: ikSolver.addTarget('R_Hand', 'R_Shoulder'),
+    lHand: ikSolver.addTarget('L_Hand', 'L_Shoulder'),
+    rFoot: ikSolver.addTarget('R_Foot', 'R_Hip'),
+    lFoot: ikSolver.addTarget('L_Foot', 'L_Hip'),
+    head:  ikSolver.addTarget('Head', 'Neck'),
 };
 const input = new InputHandler(render.canvas, skeleton, ikSolver); // mouse controls
 Object.entries({

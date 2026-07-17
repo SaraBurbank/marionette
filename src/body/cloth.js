@@ -1,8 +1,8 @@
-export function Cloth(xx, yy, columns, rows, columnGap, rowGap, crossBrace, particleRadius, particleOptions, constraintOptions) {
-    var Body = Matter.Body,
-        Bodies = Matter.Bodies,
-        Common = Matter.Common,
-        Composites = Matter.Composites;
+export function Cloth(xx, yy, columns, rows, columnGap, rowGap, crossBrace, particleRadius, particleOptions, constraintOptions, MatterRef = Matter) {
+    var Body = MatterRef.Body,
+        Bodies = MatterRef.Bodies,
+        Common = MatterRef.Common,
+        Composites = MatterRef.Composites;
 
     var group = Body.nextGroup(true);
     particleOptions = Common.extend({ inertia: Infinity, friction: 0.00001, collisionFilter: { group: group }, render: { visible: false }}, particleOptions);

@@ -22,13 +22,9 @@ export class ImageCharacterRenderer {
             'R_UpperArm', 'R_Forearm', 'R_Hand',
             'Neck', 'Head',
         ];
+        this._baseDepths = Object.fromEntries(this.drawOrder.map((name, i) => [name, i]));
 
         this.expressionOverlays = {};
-
-        this._leftParts = new Set([
-            'L_UpperLeg', 'L_Shin', 'L_Foot',
-            'L_UpperArm', 'L_Forearm', 'L_Hand',
-        ]);
     }
     async loadDefaults(defaultParts = {}, pivots = {}) {
         const loads = Object.entries(defaultParts).map(([boneName, url]) => {
@@ -55,9 +51,13 @@ export class ImageCharacterRenderer {
             scaleX: pivot.scaleX ?? 1,
             scaleY: pivot.scaleY ?? 1,
             squashStretch: pivot.squashStretch ?? true,
- 
+            depth: pivot.depth ?? this._baseDepths[boneName] ?? this.drawOrder.length,
             anchor: pivot.anchor ?? 'head',
         };
+    }
+    setPartDepth(boneName, depth) {
+        const part = this.parts[boneName];
+        if (part) part.depth = depth;
     }
     removePart(boneName) {
         delete this.parts[boneName];
@@ -95,20 +95,12 @@ export class ImageCharacterRenderer {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
-        // Draw body parts in order
-        for (const boneName of this.drawOrder) {
-            const part = this.parts[boneName];
-            if (!part) continue;
-
+        const ordered = Object.entries(this.parts).sort((a, b) => a[1].depth - b[1].depth);
+        for (const [boneName, part] of ordered) {
             const bone = this._bone(boneName);
             if (!bone) continue;
-
-            const isLeft = this._leftParts.has(boneName);
-            ctx.globalAlpha = isLeft ? 0.82 : 1.0;
             this._drawPart(ctx, bone, part);
         }
-
-        ctx.globalAlpha = 1.0;
 
         // Expression overlays — drawn after all normal parts (so they sit
         // on top of e.g. the neutral head), before hair.
