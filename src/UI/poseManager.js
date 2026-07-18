@@ -20,19 +20,38 @@ export class PoseManager {
         this._listeners = [];
         this._progressListeners = [];
     }
-    get hasPoses() { return this._poses.length > 0 };
-    get playIndex() { return this._playIndex };
-    get poses() { return this._poses };
+    get hasPoses() { return this._poses.length > 0; }
+    get playIndex() { return this._playIndex; }
+    get poses() { return this._poses; }
+    get isPlaying() { return this._playing; }
     savePose() {
         this._poses.push({
             name: `Pose ${this._poses.length + 1}`,
             pose: this._capture()
         });
-
         this._notify();
     }
     removePose(index) {
         this._poses.splice(index, 1);
+        this._notify();
+    }
+    reorderPose(fromIndex, toIndex) {
+        if (fromIndex === toIndex) return;
+        if (fromIndex < 0 || fromIndex >= this._poses.length) return;
+        if (toIndex < 0 || toIndex >= this._poses.length) return;
+
+        if (this._playing) this.stop();
+
+        const [moved] = this._poses.splice(fromIndex, 1);
+        this._poses.splice(toIndex, 0, moved);
+
+        if (this._playIndex === fromIndex) {
+            this._playIndex = toIndex;
+        } else if (fromIndex < this._playIndex && toIndex >= this._playIndex) {
+            this._playIndex -= 1;
+        } else if (fromIndex > this._playIndex && toIndex <= this._playIndex) {
+            this._playIndex += 1;
+        }
         this._notify();
     }
     goToPose(index) {
@@ -85,7 +104,6 @@ export class PoseManager {
             this._tween = null;
         }
         this._playing = false;
-        this._playIndex = 0;
         this._playDirection = 1;
 
         this._resumeIK();
@@ -114,16 +132,12 @@ export class PoseManager {
         this._notify();
     }
     _playSegment(index) {
-        if (!this._playing)
-            return;
+        if (!this._playing) return;
 
         if (index >= this._poses.length - 1) {
-
-            // finished
             this._onPlaybackEnd();
             return;
         }
-
         const from = this._poses[index].pose;
         const to   = this._poses[index + 1].pose;
 
@@ -134,25 +148,19 @@ export class PoseManager {
 
         this._tween = gsap.to(targets,
             this._tweenVars(targets, to, {
-
                 duration: this.duration,
                 ease: this.ease,
 
                 onUpdate: () =>
                     this._flushTweenTargets(targets),
-
                 onComplete: () =>
                     this._playSegment(index + 1)
-
             })
         );
-
         this._tween.timeScale(this.speed);
     }
     _playSequence() {
-        if (!this._playing)
-            return;
-
+        if (!this._playing) return;
         let next = this._playIndex + this._playDirection;
 
         // ---- end ----
@@ -162,10 +170,8 @@ export class PoseManager {
                 return;
             }
             this._playDirection *= -1;  // reverse direction
-
             next = this._playIndex + this._playDirection;
         }
-
         const fromPose = this._poses[this._playIndex].pose;
         const toPose   = this._poses[next].pose;
 
@@ -186,9 +192,7 @@ export class PoseManager {
                 },
                 onComplete: () => {
                     this._playIndex = next;
-
-                    if (!this._playing)
-                        return;
+                    if (!this._playing) return;
 
                     this._tween = gsap.delayedCall(
                         this.holdTime,
@@ -198,13 +202,18 @@ export class PoseManager {
                 }
             })
         );
-
         this._tween.timeScale(this.speed);
     }
     _onPlaybackEnd() {
         this._playing = false;
         this._resumeIK();
         this._notify();
+    }
+    _notifySegmentProgress(next) {
+        if (!this._tween || this._poses.length < 2) return;
+        const segmentT = this._tween.progress();
+        const pos = this._playIndex + (next - this._playIndex) * segmentT;
+        this._notifyProgress(pos / (this._poses.length - 1));
     }
     _capture() {    // Snapshot all bone localAngles into a plain object
         const snapshot = {};
@@ -236,7 +245,6 @@ export class PoseManager {
         return proxy;
     }
     _tweenVars(targets, toPose, extra) {
-        // End values, limited to the bones we actually resolved a start value for.
         const endValues = {};
         for (const name of Object.keys(targets)) {
             endValues[name] = toPose[name];
@@ -285,10 +293,7 @@ export class PoseManager {
         };
         for (const fn of this._listeners) fn(state);
     }
-    _notifySegmentProgress(next) {
-        if (!this._tween || this._poses.length < 2) return;
-        const segmentT = this._tween.progress();
-        const pos = this._playIndex + (next - this._playIndex) * segmentT;
-        this._notifyProgress(pos / (this._poses.length - 1));
+    _notifyProgress(progress) {
+        for (const fn of this._progressListeners) fn(progress);
     }
 }

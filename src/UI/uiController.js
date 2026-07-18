@@ -28,11 +28,8 @@ export class UIController {
 
         panel.appendChild(this._buildModeSection());    // mode indicator
         panel.appendChild(divider());
-
         panel.appendChild(this._buildProportionSection());  // proportion sliders
-        panel.appendChild(divider());
-
-        panel.appendChild(this._buildResetSection());   // reset button
+        
         return panel;
     }
     _buildModeSection() {
@@ -98,17 +95,5 @@ export class UIController {
         row.appendChild(val);
         this._proportionSliders.push({ key, slider, valueLabel: val, defaultVal });
         return row;
-    }
-    _buildResetSection() {
-        const wrap = el('div', 'mn-section');
-        const resetBtn = btn('Reset pose', () => {
-            if (this.poses.length > 0) {
-                this.poses.reset();
-            }
-        });
-        resetBtn.classList.add('mn-btn-full');
-        resetBtn.title = 'Jump back to the original pose';
-        wrap.appendChild(resetBtn);
-        return wrap;
     }
 }

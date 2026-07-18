@@ -8,6 +8,7 @@ import { ProportionController } from "./UI/proportionController.js";
 import { UIController } from "./UI/uiController.js";
 import { RendererManager } from "./renderManager.js";
 import { TimelineBar } from "./UI/timelineBar.js";
+import { PartVisibility } from "./partVisibility.js";
 
 const { Engine, Render, Runner, Events } = Matter;
 // Engine - world (collection of bodies) simulation updates
@@ -126,6 +127,7 @@ alertFace.onload = () => {
     rManager.imageRenderer.setExpressionOverlay('Head', alertFace, {
         pivotX: 0.5,
         pivotY: 0.05,   // match the default Head part's pivot so they line up
+        speedCap: 4,
     });
 };
 alertFace.onerror = () => {

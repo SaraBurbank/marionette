@@ -4,7 +4,7 @@
     right: 20px;
     z-index: 100;
     width: 220px;
-    max-height: 80vh;
+    max-height: 65vh;
     overflow-y: auto;
     background: rgba(20, 20, 20, 0.88);
     backdrop-filter: blur(12px);

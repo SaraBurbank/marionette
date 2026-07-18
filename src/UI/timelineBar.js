@@ -5,51 +5,91 @@ export class TimelineBar {
         this.poses = poseManager;
 
         this._bar = null;
-        this._poseList = null;
+        this._track = null;
+        this._marksLayer = null;
+        this._playhead = null;
         this._savePoseBtn = null;
         this._playBtn = null;
         this._speedSlider = null;
         this._thumbCache = new Map();
 
         this.poses.onStateChange((state) => this._onPoseStateChange(state));
+        this.poses.onProgress((progress) => this._onProgress(progress));
     }
     mount() {
         this._bar = this._buildBar();
         document.body.appendChild(this._bar);
+        this._refreshMarks();   // show empty-state / any pre-existing poses immediately
     }
     _buildBar() {
         const bar = el('div', 'mn-timeline');
 
-        this._savePoseBtn = btn('Save Pose', () => {
-            this.poses.savePose();
-        });
-        bar.appendChild(this._savePoseBtn);
+        bar.appendChild(this._buildControlsRow());
         bar.appendChild(this._buildTrack());
 
-        this._poseList = el('div', 'mn-timeline-pose-list');
-        bar.appendChild(this._poseList);
+        return bar;
+    }
+    _buildControlsRow() {
+        const row = el('div', 'mn-timeline-controls');
+
+        this._savePoseBtn = btn('Save Pose', () => this.poses.savePose());
+        row.appendChild(this._savePoseBtn);
+
+        this._resetBtn = btn('Reset pose', () => {
+            if (this.poses.hasPoses) this.poses.reset();
+        });
+        row.appendChild(this._resetBtn);
 
         this._playBtn = btn('Play', () => {
             this.poses.isPlaying ? this.poses.stop() : this.poses.play();
         });
         this._playBtn.disabled = true;
-        bar.appendChild(this._playBtn);
+        row.appendChild(this._playBtn);
 
-        bar.appendChild(this._buildSpeedSlider());
-        return bar;
+        row.appendChild(this._buildSpeedSlider());
+
+        return row;
     }
     _buildTrack() {
-        const track = el('div', 'mn-timeline-track');
-
-        this._playhead = el('div', 'mn-timeline-playhead');
-        track.appendChild(this._playhead);
+        this._track = el('div', 'mn-timeline-track');
 
         this._marksLayer = el('div', 'mn-timeline-marks');
-        track.appendChild(this._marksLayer);
+        this._track.appendChild(this._marksLayer);
 
-        this.poses.onProgress((progress) => this._onProgress(progress));
+        this._playhead = el('div', 'mn-timeline-playhead');
+        this._track.appendChild(this._playhead);
 
-        return track;
+        return this._track;
+    }
+    _buildSpeedSlider() {
+        const row = el('div', 'mn-timeline-speed');
+
+        const lbl = el('span', 'mn-slider-label');
+        lbl.textContent = 'Speed';
+        row.appendChild(lbl);
+
+        const val = el('span', 'mn-slider-value');
+        const initial = this.poses.speed ?? 1;
+        val.textContent = `${initial.toFixed(2)}x`;
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = 0.25;
+        slider.max = 3;
+        slider.step = 0.05;
+        slider.value = initial;
+        slider.classList.add('mn-slider');
+        slider.setAttribute('aria-label', 'Playback speed');
+
+        slider.addEventListener('input', () => {
+            const v = parseFloat(slider.value);
+            val.textContent = `${v.toFixed(2)}x`;
+            this.poses.setSpeed(v);
+        });
+
+        row.append(slider, val);
+        this._speedSlider = { slider, valueLabel: val };
+        return row;
     }
     _buildThumbnail(pose, index) {
         if (this._thumbCache.has(pose)) {
@@ -89,76 +129,122 @@ export class TimelineBar {
         this._thumbCache.set(pose, svg);
         return svg.cloneNode(true);
     }
-    _buildSpeedSlider() {
-        const row = el('div', 'mn-timeline-speed');
-
-        const lbl = el('span', 'mn-slider-label');
-        lbl.textContent = 'Speed';
-        row.appendChild(lbl);
-
-        const val = el('span', 'mn-slider-value');
-        const initial = this.poses.speed ?? 1;
-        val.textContent = `${initial.toFixed(2)}x`;
-
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.min = 0.25;
-        slider.max = 3;
-        slider.step = 0.05;
-        slider.value = initial;
-        slider.classList.add('mn-slider');
-        slider.setAttribute('aria-label', 'Playback speed');
-
-        slider.addEventListener('input', () => {
-            const v = parseFloat(slider.value);
-            val.textContent = `${v.toFixed(2)}x`;
-            this.poses.setSpeed(v);
-        });
-
-        row.append(slider, val);
-        this._speedSlider = { slider, valueLabel: val };
-        return row;
-    }
     _refreshMarks() {
         this._marksLayer.replaceChildren();
 
         const poses = this.poses.poses;
-        const count = poses.length;
+
+        if (poses.length === 0) {
+            this._marksLayer.appendChild(this._buildEmptyState());
+            this._playhead.style.left = '0px';
+            return;
+        }
 
         poses.forEach((pose, index) => {
             const mark = el('div', 'mn-timeline-mark');
-            mark.textContent = index + 1;
             mark.title = pose.name;
-            mark.style.left = `${count > 1 ? (index / (count - 1)) * 100 : 0}%`;
+            mark.draggable = true;
+            mark.dataset.index = index;
 
             const thumb = this._buildThumbnail(pose, index);
             if (thumb) mark.appendChild(thumb);
 
-            mark.addEventListener('click', () => this.poses.goToPose(index));
-
-            this._marksLayer.appendChild(mark);
-        });
-    }
-    _refreshPoseList() {
-        this._poseList.replaceChildren();
-
-        this.poses.poses.forEach((pose, index) => {
-            const chip = el('div', 'mn-timeline-chip');
-
-            const label = document.createElement('span');
-            label.textContent = pose.name;
-
-            const remove = btn('✕', () => {
+            const remove = btn('✕', (e) => {
+                e.stopPropagation();
                 this.poses.removePose(index);
             });
-            remove.classList.add('mn-delete-btn');
+            remove.classList.add('mn-timeline-mark-remove');
+            mark.appendChild(remove);
 
-            chip.append(label, remove);
-            this._poseList.appendChild(chip);
+            mark.addEventListener('click', () => this.poses.goToPose(index));
+            this._wireDragHandlers(mark, index);
+            this._marksLayer.appendChild(mark);
+        });
+        this._onProgress(this._lastProgress ?? 0);
+    }
+     _wireDragHandlers(mark, index) {
+        mark.addEventListener('dragstart', (e) => {
+            // Don't start a reorder-drag when grabbing the remove button.
+            if (e.target.closest('.mn-timeline-mark-remove')) {
+                e.preventDefault();
+                return;
+            }
+            this._dragFromIndex = index;
+            mark.classList.add('mn-timeline-mark-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(index));
+        });
+ 
+        mark.addEventListener('dragend', () => {
+            mark.classList.remove('mn-timeline-mark-dragging');
+            this._clearDragOverIndicators();
+            this._dragFromIndex = null;
+        });
+ 
+        mark.addEventListener('dragover', (e) => {
+            if (this._dragFromIndex === null) return;
+            e.preventDefault();   // required to allow a drop here
+            e.dataTransfer.dropEffect = 'move';
+ 
+            const rect = mark.getBoundingClientRect();
+            const before = (e.clientX - rect.left) < rect.width / 2;
+            this._clearDragOverIndicators();
+            mark.classList.add(before ? 'mn-timeline-mark-dragover-before' : 'mn-timeline-mark-dragover-after');
+            mark.dataset.dropBefore = before;
+        });
+ 
+        mark.addEventListener('dragleave', () => {
+            mark.classList.remove('mn-timeline-mark-dragover-before', 'mn-timeline-mark-dragover-after');
+        });
+ 
+        mark.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const fromIndex = this._dragFromIndex;
+            this._clearDragOverIndicators();
+            if (fromIndex === null) return;
+ 
+            const targetIndex = Number(mark.dataset.index);
+            const before = mark.dataset.dropBefore === 'true';
+            let toIndex = before ? targetIndex : targetIndex + 1;
+ 
+            toIndex = Math.min(toIndex, this.poses.poses.length - 1);
+ 
+            if (fromIndex < toIndex) toIndex -= 1;
+ 
+            this.poses.reorderPose(fromIndex, toIndex);
         });
     }
+    _clearDragOverIndicators() {
+        for (const mark of this._marksLayer.children) {
+            mark.classList?.remove('mn-timeline-mark-dragover-before', 'mn-timeline-mark-dragover-after');
+        }
+    }
+    _buildEmptyState() {
+        const empty = el('span', 'mn-timeline-empty');
+        empty.textContent = 'No poses saved yet';
+        return empty;
+    }
+    _onProgress(progress) {
+        this._lastProgress = progress;
+        if (!this._playhead) return;
+
+        const marks = this._marksLayer.children;
+        if (marks.length < 2) {
+            this._playhead.style.left = marks.length === 1
+                ? `${marks[0].offsetLeft + marks[0].offsetWidth / 2}px`
+                : '0px';
+            return;
+        }
+
+        const first = marks[0];
+        const last = marks[marks.length - 1];
+        const firstCenter = first.offsetLeft + first.offsetWidth / 2;
+        const lastCenter = last.offsetLeft + last.offsetWidth / 2;
+        const clamped = Math.max(0, Math.min(1, progress));
+
+        this._playhead.style.left = `${firstCenter + (lastCenter - firstCenter) * clamped}px`;
+    }
     _onPoseStateChange({ poseCount, isPlaying, speed }) {
-        this._refreshPoseList();
         this._refreshMarks();
 
         this._playBtn.disabled = poseCount < 2;
@@ -174,9 +260,5 @@ export class TimelineBar {
             this._speedSlider.slider.value = speed;
             this._speedSlider.valueLabel.textContent = `${speed.toFixed(2)}x`;
         }
-    }
-    _onProgress(progress) {
-        if (!this._playhead) return;
-        this._playhead.style.left = `${Math.max(0, Math.min(1, progress)) * 100}%`;
     }
 }
