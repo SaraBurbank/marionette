@@ -89,6 +89,7 @@ secondBody.addClothingChain('Hip', 6, 18, {
 });
 
 // Render Management
+const visibility = new PartVisibility();
 const ASSET_BASE = new URL('./assets/default/', import.meta.url);
 const asset = (filename) => new URL(filename, ASSET_BASE).href;
 
@@ -115,9 +116,9 @@ await rManager.init({
 });
 
 Events.on(render, 'afterRender', () => {
-    secondBody.drawHair(render.context);
+    if (visibility.hair) secondBody.drawHair(render.context);
     rManager.drawBehindClothing(render.context);
-    secondBody.drawClothing(render.context);
+    if (visibility.clothes) secondBody.drawClothing(render.context);
     rManager.drawFrontOfClothing(render.context);
 });
 
@@ -172,6 +173,7 @@ const ui = new UIController({
     poseManager:          poses,
     proportionController: proportions,
     inputHandler:         input,
+    visibility,
 });
 ui.mount();    
 

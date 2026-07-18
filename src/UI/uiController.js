@@ -1,10 +1,11 @@
 import { el, label, btn, divider } from './domHelpers.js';
 
 export class UIController {
-    constructor({ poseManager, proportionController, inputHandler }) {
+    constructor({ poseManager, proportionController, inputHandler, visibility }) {
         this.poses = poseManager;
         this.proportions = proportionController;
         this.input = inputHandler;
+        this.visibility = visibility;
 
         this._panel = null;   // root panel element
         this._modePill = null;   // FK/IK indicator element
@@ -29,7 +30,9 @@ export class UIController {
         panel.appendChild(this._buildModeSection());    // mode indicator
         panel.appendChild(divider());
         panel.appendChild(this._buildProportionSection());  // proportion sliders
-        
+        panel.appendChild(divider());
+        panel.appendChild(this._buildVisibilitySection());  // changing visibility of secondary bodies
+
         return panel;
     }
     _buildModeSection() {
@@ -95,5 +98,30 @@ export class UIController {
         row.appendChild(val);
         this._proportionSliders.push({ key, slider, valueLabel: val, defaultVal });
         return row;
+    }
+    _buildVisibilitySection() {
+        const wrap = el('div', 'mn-section');
+        wrap.appendChild(label('Visibility'));
+        const row = el('div', 'mn-row');
+
+        this._hairToggleBtn = btn('Hide Hair', () => {
+            this.visibility.toggleHair();
+        });
+        row.appendChild(this._hairToggleBtn);
+
+        this._clothesToggleBtn = btn('Hide Clothes', () => {
+            this.visibility.toggleClothes();
+        });
+        row.appendChild(this._clothesToggleBtn);
+
+        this.visibility.onChange(({ hair, clothes }) => {
+            this._hairToggleBtn.textContent = hair ? 'Hide Hair' : 'Show Hair';
+            this._hairToggleBtn.classList.toggle('mn-btn-saved', !hair);
+
+            this._clothesToggleBtn.textContent = clothes ? 'Hide Clothes' : 'Show Clothes';
+            this._clothesToggleBtn.classList.toggle('mn-btn-saved', !clothes);
+        });
+        wrap.appendChild(row);
+        return wrap;
     }
 }
