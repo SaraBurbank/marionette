@@ -7,6 +7,7 @@ import { PoseManager } from "./UI/poseManager.js";
 import { ProportionController } from "./UI/proportionController.js";
 import { UIController } from "./UI/uiController.js";
 import { RendererManager } from "./renderManager.js";
+import { TimelineBar } from "./UI/timelineBar.js";
 
 const { Engine, Render, Runner, Events } = Matter;
 // Engine - world (collection of bodies) simulation updates
@@ -131,12 +132,6 @@ alertFace.onerror = () => {
     console.warn('main.js: failed to load default expression overlay (head_alert.png)');
 };
 alertFace.src = asset('head_alert.png');
- 
-// Part uploader — lets the user override any default part with their own image
-const uploader = new PartUploader({
-    renderer: rManager.imageRenderer,
-});
-uploader.mount();
 
 // IK chains
 const ikSolver = new IKSolver(skeleton);
@@ -165,7 +160,6 @@ const poses = new PoseManager(skeleton, ikSolver, {
     pingPong:  true,    // if true, plays A→B then B→A
     holdTime:  0.3,     // Pause at each end (seconds) when pingPong
 });
- 
 input.onDragStart = () => poses.onUserDrag();
 
 // Proportion controller
@@ -177,7 +171,13 @@ const ui = new UIController({
     proportionController: proportions,
     inputHandler:         input,
 });
-ui.mount();    // injects panel into document.body
+ui.mount();    
+
+const uploader = new PartUploader({ renderer: rManager.imageRenderer });
+uploader.mount();
+
+const timelineBar = new TimelineBar({ poseManager: poses });
+timelineBar.mount();
 
 // runner - engine update loop
 const runner = Runner.create();

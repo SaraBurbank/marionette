@@ -1,4 +1,3 @@
-// todo: change pose system to have save pose to a list of poses
 export class PoseManager {
     constructor(skeleton, ikSolver, options = {}) {
         this.skeleton = skeleton;
@@ -11,41 +10,74 @@ export class PoseManager {
         this.speed = options.speed ?? 1;   // playback speed multiplier (1 = normal)
 
         this._originalPose = this._capture();
-        this._poseA = null;    // { boneName: localAngle }
-        this._poseB = null;
+        this._poses = [];
+        this._playIndex = 0;
+        this._playDirection = 1;
+
         this._tween = null;    // active GSAP tween
         this._playing = false;
 
-        this.onStateChange = null;
+        this._listeners = [];
+        this._progressListeners = [];
     }
-    saveA() {
-        this._poseA = this._capture();
+    get hasPoses() { return this._poses.length > 0 };
+    get playIndex() { return this._playIndex };
+    get poses() { return this._poses };
+    savePose() {
+        this._poses.push({
+            name: `Pose ${this._poses.length + 1}`,
+            pose: this._capture()
+        });
+
         this._notify();
     }
-    saveB() {
-        this._poseB = this._capture();
+    removePose(index) {
+        this._poses.splice(index, 1);
         this._notify();
     }
+    goToPose(index) {
+        if (index < 0 || index >= this._poses.length) return;
+        this.stop();
+        this._applyPose(this._poses[index].pose);
+        this.skeleton.update();
+        this._playIndex = index;
+        this._notify();
+    }
+    getPoseSnapshot(index) {
+        const pose = this._poses[index]?.pose;
+        if (!pose) return null;
 
-    get hasA() { return this._poseA !== null; }     // if Pose A has been saved
-    get hasB() { return this._poseB !== null; }     // if Pose B has been saved
-    get isPlaying() { return this._playing; }       // if tween is running
+        const current = this._capture();   // save live pose
 
+        this._applyPose(pose);
+        this.skeleton.update();
+
+        const bones = this.skeleton.getAllBones()
+            .filter(b => b.length > 0)
+            .map(b => ({
+                x1: b.worldX, y1: b.worldY,
+                x2: b.tailX,  y2: b.tailY
+            }));
+
+        this._applyPose(current);          // restore live pose
+        this.skeleton.update();
+
+        return bones;
+    }
     play() {
-        if (!this._poseA || !this._poseB) {
-            console.warn('PoseManager.play: both poses must be saved first.');
+        if (this._poses.length < 2) {
+            console.warn('PoseManager.play: You need at least 2 poses to animate');
             return;
         }
         this.stop();
         this._pauseIK();
         this._playing = true;
+        this._playIndex = 0;
+        this._playDirection = 1;
+
         this._notify();
 
-        if (this.pingPong) {
-            this._playPingPong();
-        } else {
-            this._playOneWay();
-        }
+        this._playSequence();
     }
     stop() {
         if (this._tween) {
@@ -53,6 +85,9 @@ export class PoseManager {
             this._tween = null;
         }
         this._playing = false;
+        this._playIndex = 0;
+        this._playDirection = 1;
+
         this._resumeIK();
         this._notify();
     }
@@ -64,66 +99,107 @@ export class PoseManager {
     onUserDrag() {
         if (this._playing) this.stop();
     }
+    onStateChange(cb) { 
+        this._listeners.push(cb); 
+    }
+    onProgress(fn) {
+        this._progressListeners.push(fn);
+    }
     setSpeed(multiplier) {
-        // Clamp to something sane so 0 or negative values can't freeze/reverse-break GSAP
+        // non 0 value to not break GSAP
         this.speed = Math.max(0.05, multiplier);
         if (this._tween) {
             this._tween.timeScale(this.speed);
         }
         this._notify();
     }
-    _playOneWay() {
-        // Apply Pose A immediately, then tween to Pose B
-        this._applyPose(this._poseA);
+    _playSegment(index) {
+        if (!this._playing)
+            return;
+
+        if (index >= this._poses.length - 1) {
+
+            // finished
+            this._onPlaybackEnd();
+            return;
+        }
+
+        const from = this._poses[index].pose;
+        const to   = this._poses[index + 1].pose;
+
+        this._applyPose(from);
         this.skeleton.update();
 
-        const targets = this._buildTweenTargets(this._poseB);
-        this._tween = gsap.to(targets, this._tweenVars(targets, this._poseB, {
-            duration:   this.duration,
-            ease:       this.ease,
-            onUpdate:   () => this._flushTweenTargets(targets),
-            onComplete: () => this._onPlaybackEnd(),
-        }));
+        const targets = this._buildTweenTargets(to);
+
+        this._tween = gsap.to(targets,
+            this._tweenVars(targets, to, {
+
+                duration: this.duration,
+                ease: this.ease,
+
+                onUpdate: () =>
+                    this._flushTweenTargets(targets),
+
+                onComplete: () =>
+                    this._playSegment(index + 1)
+
+            })
+        );
+
         this._tween.timeScale(this.speed);
     }
-    _playPingPong() {
-        // A → B, pause, B → A, pause, repeat
-        const toB = () => {
-            this._applyPose(this._poseA);
-            this.skeleton.update();
-            const targets = this._buildTweenTargets(this._poseB);
-            this._tween = gsap.to(targets, this._tweenVars(targets, this._poseB, {
-                duration:   this.duration,
-                ease:       this.ease,
-                onUpdate:   () => this._flushTweenTargets(targets),
-                onComplete: () => {
-                    if (!this._playing) return;
-                    // Hold at B, then tween back to A
-                    this._tween = gsap.delayedCall(this.holdTime, toA);
-                    this._tween.timeScale(this.speed);
+    _playSequence() {
+        if (!this._playing)
+            return;
+
+        let next = this._playIndex + this._playDirection;
+
+        // ---- end ----
+        if (next >= this._poses.length || next < 0) {
+            if (!this.pingPong) {
+                this._onPlaybackEnd();
+                return;
+            }
+            this._playDirection *= -1;  // reverse direction
+
+            next = this._playIndex + this._playDirection;
+        }
+
+        const fromPose = this._poses[this._playIndex].pose;
+        const toPose   = this._poses[next].pose;
+
+        this._applyPose(fromPose);
+        this.skeleton.update();
+
+        const targets = this._buildTweenTargets(toPose);
+
+        this._tween = gsap.to(
+            targets,
+            this._tweenVars(targets, toPose, {
+                duration: this.duration,
+                ease: this.ease,
+
+                onUpdate: () => {
+                    this._flushTweenTargets(targets);
+                    this._notifySegmentProgress(next);
                 },
-            }));
-            this._tween.timeScale(this.speed);
-        };
-        const toA = () => {
-            if (!this._playing) return;
-            this._applyPose(this._poseB);
-            this.skeleton.update();
-            const targets = this._buildTweenTargets(this._poseA);
-            this._tween = gsap.to(targets, this._tweenVars(targets, this._poseA, {
-                duration:   this.duration,
-                ease:       this.ease,
-                onUpdate:   () => this._flushTweenTargets(targets),
                 onComplete: () => {
-                    if (!this._playing) return;
-                    // Hold at A, then loop back to B
-                    this._tween = gsap.delayedCall(this.holdTime, toB);
+                    this._playIndex = next;
+
+                    if (!this._playing)
+                        return;
+
+                    this._tween = gsap.delayedCall(
+                        this.holdTime,
+                        () => this._playSequence()
+                    );
                     this._tween.timeScale(this.speed);
-                },
-            }));
-            this._tween.timeScale(this.speed);
-        };
-        toB();
+                }
+            })
+        );
+
+        this._tween.timeScale(this.speed);
     }
     _onPlaybackEnd() {
         this._playing = false;
@@ -193,22 +269,26 @@ export class PoseManager {
         }
     }
     export() {
-        return { poseA: this._poseA, poseB: this._poseB, speed: this.speed };
+        return { poses: this._poses, speed: this.speed };
     }
     import(data) {
-        this._poseA = data.poseA ?? null;
-        this._poseB = data.poseB ?? null;
+        this._poses = data.poses ?? [];
         this.speed = data.speed ?? this.speed;
         this._notify();
     }
     _notify() {
-        if (typeof this.onStateChange === 'function') {
-            this.onStateChange({
-                hasA:      this.hasA,
-                hasB:      this.hasB,
-                isPlaying: this.isPlaying,
-                speed:     this.speed,
-            });
-        }
+        const state = { 
+            poses: this._poses, 
+            poseCount: this._poses.length, 
+            isPlaying: this._playing, 
+            speed: this.speed 
+        };
+        for (const fn of this._listeners) fn(state);
+    }
+    _notifySegmentProgress(next) {
+        if (!this._tween || this._poses.length < 2) return;
+        const segmentT = this._tween.progress();
+        const pos = this._playIndex + (next - this._playIndex) * segmentT;
+        this._notifyProgress(pos / (this._poses.length - 1));
     }
 }

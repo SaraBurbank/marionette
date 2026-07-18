@@ -61,6 +61,7 @@
     display: flex;
     gap: 6px;
 }
+/* BUTTONS */
 .mn-btn {
     flex: 1;
     padding: 6px 8px;
@@ -98,6 +99,7 @@
     border-color: rgba(122, 244, 235, 0.5);
     color: #7af4eb;
 }
+/* SLIDER */
 .mn-slider-row {
     display: grid;
     grid-template-columns: 44px 1fr 32px;
