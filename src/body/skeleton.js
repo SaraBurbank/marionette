@@ -19,16 +19,16 @@ export class Skeleton {
         const spine = this._add(new Bone('Spine', 45, hip));
         const chest = this._add(new Bone('Chest', 60, spine));
         const neck = this._add(new Bone('Neck', 10, chest));
-        const head = this._add(new Bone('Head', 45, neck));
+        const head = this._add(new Bone('Head', 50, neck));
  
         // Right arm 
-        const rShoulder = this._add(new Bone('R_Shoulder', 30, chest));
+        const rShoulder = this._add(new Bone('R_Shoulder', 22, chest));
         const rUpperArm = this._add(new Bone('R_UpperArm', 50, rShoulder));
         const rForearm = this._add(new Bone('R_Forearm', 48, rUpperArm));
         const rHand = this._add(new Bone('R_Hand', 20 , rForearm));
  
         // Left arm 
-        const lShoulder = this._add(new Bone('L_Shoulder', 30, chest));
+        const lShoulder = this._add(new Bone('L_Shoulder', 22, chest));
         const lUpperArm = this._add(new Bone('L_UpperArm', 50, lShoulder));
         const lForearm = this._add(new Bone('L_Forearm', 48, lUpperArm));
         const lHand = this._add(new Bone('L_Hand', 20, lForearm));

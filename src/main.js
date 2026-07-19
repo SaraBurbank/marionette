@@ -93,9 +93,8 @@ const visibility = new PartVisibility();
 const ASSET_BASE = new URL('./assets/default/', import.meta.url);
 const asset = (filename) => new URL(filename, ASSET_BASE).href;
 
-const rManager = new RendererManager(skeleton, secondBody);
-rManager.debug = false;
-await rManager.init({
+// Named (rather than inlined) so PartUploader can also use it to restore parts to default
+const defaultParts = {
     Head:        asset('head_happy.png'),
     Neck:        asset('neck.png'),
     Chest:       asset('torso.png'),
@@ -113,7 +112,11 @@ await rManager.init({
     L_UpperLeg:  asset('upperleg.png'),
     L_Shin:      asset('shin.png'),
     L_Foot:      asset('foot.png'),
-});
+};
+
+const rManager = new RendererManager(skeleton, secondBody);
+rManager.debug = false;
+await rManager.init(defaultParts);
 
 Events.on(render, 'afterRender', () => {
     if (visibility.hair) secondBody.drawHair(render.context);
@@ -177,7 +180,11 @@ const ui = new UIController({
 });
 ui.mount();    
 
-const uploader = new PartUploader({ renderer: rManager.imageRenderer });
+const uploader = new PartUploader({
+    renderer:      rManager.imageRenderer,
+    defaultParts,
+    defaultPivots: {}, // add per-bone { pivotX, pivotY } here if any default part needs a non-standard pivot
+});
 uploader.mount();
 
 const timelineBar = new TimelineBar({ poseManager: poses });

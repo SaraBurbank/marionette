@@ -51,10 +51,11 @@ export class ImageCharacterRenderer {
     setPart(boneName, image, pivot = {}) {
         this.parts[boneName] = {
             image,
-            pivotX: pivot.pivotX ?? 0.5,
-            pivotY: pivot.pivotY ?? 0.05,
-            scaleX: pivot.scaleX ?? 1,
+            pivotX: pivot.pivotX ?? 0.5,    // bottom-center at bone head
+            pivotY: pivot.pivotY ?? 0.05,   // top-center at bone head
+            scaleX: pivot.scaleX ?? 1,      // bottom-center at bone head
             scaleY: pivot.scaleY ?? 1,
+            flipY: pivot.flipY ?? true,
             squashStretch: pivot.squashStretch ?? true,
             depth: pivot.depth ?? this._baseDepths[boneName] ?? this.drawOrder.length,
             anchor: pivot.anchor ?? 'head',
@@ -71,9 +72,10 @@ export class ImageCharacterRenderer {
         this.expressionOverlays[boneName] = {
             image,
             pivotX: options.pivotX ?? 0.5,
-            pivotY: options.pivotY ?? 0.05,
+            pivotY: options.pivotY ?? 0.95,
             scaleX: options.scaleX ?? 1,
             scaleY: options.scaleY ?? 1,
+            flipY: options.flipY ?? true,
             anchor: options.anchor ?? 'head',
             speedCap: options.speedCap ?? this.squashStretch.speedCap,
             squashStretch: false, // overlay follows the base image's squash/stretch implicitly by sharing its geometry; avoid double-applying
@@ -130,7 +132,7 @@ export class ImageCharacterRenderer {
         for (const [boneName, part] of ordered) {
             const bone = this._bone(boneName);
             if (!bone) continue;
-            this._drawPart(ctx, bone, part);
+            this._drawImageOnBone(ctx, bone, part, ctx.globalAlpha);
         }
     }
     _drawExpressionOverlays(ctx, filterFn = () => true) {
@@ -143,11 +145,8 @@ export class ImageCharacterRenderer {
             this._drawImageOnBone(ctx, bone, overlay, alpha);
         }
     }
-    _drawPart(ctx, bone, part) {
-        this._drawImageOnBone(ctx, bone, part, ctx.globalAlpha);
-    }
     _drawImageOnBone(ctx, bone, part, alpha = 1) {
-        const { image, pivotX, pivotY, scaleX, scaleY, anchor, squashStretch } = part;
+        const { image, pivotX, pivotY, scaleX, scaleY, anchor, squashStretch, flipY } = part;
         if (!image || !image.complete || alpha <= 0) return;
 
         // Scale image height to bone length; width scales proportionally
@@ -176,14 +175,17 @@ export class ImageCharacterRenderer {
         ctx.translate(anchorX, anchorY);
         ctx.rotate(-bone.worldAngle);
 
+        // flip image vertically in local space
+        if ( flipY ) ctx.scale(1, -1);
+
         ctx.drawImage(
             image,
-            -pivotX * dw,         // x offset: pivot fraction of width
-            -pivotY * dh,         // y offset: pivot fraction of height
+            -pivotX * dw,
+            -(1 - pivotY) * dh,
             dw,
             dh
         );
-
+        
         ctx.restore();
     }
     _sliceHair() {
