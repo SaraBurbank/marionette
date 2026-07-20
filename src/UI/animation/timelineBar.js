@@ -1,8 +1,12 @@
-import { el, btn } from './domHelpers.js';
+import { el, btn } from '../domHelpers.js';
+import { buildShareUrl } from '../video/URLsharing.js';
+import { VideoExporter } from '../video/videoExporter.js';
 
 export class TimelineBar {
-    constructor({ poseManager }) {
+    constructor({ poseManager, canvas }) {
         this.poses = poseManager;
+        this.canvas = canvas ?? null;
+        this._videoExporter = this.canvas ? new VideoExporter({ canvas: this.canvas, poseManager }) : null;
 
         this._bar = null;
         this._track = null;
@@ -10,8 +14,12 @@ export class TimelineBar {
         this._playhead = null;
         this._savePoseBtn = null;
         this._playBtn = null;
+        this._shareBtn = null;
+        this._exportBtn = null;
         this._speedSlider = null;
         this._thumbCache = new Map();
+
+        this._dragFromIndex = null;   // index currently being dragged, if any
 
         this.poses.onStateChange((state) => this._onPoseStateChange(state));
         this.poses.onProgress((progress) => this._onProgress(progress));
@@ -48,7 +56,60 @@ export class TimelineBar {
 
         row.appendChild(this._buildSpeedSlider());
 
+        this._shareBtn = btn('Share', () => this._onShareClick());
+        this._shareBtn.title = 'Copy a link that loads this pose sequence';
+        this._shareBtn.disabled = true;   // enabled once at least one pose exists
+        row.appendChild(this._shareBtn);
+
+        this._exportBtn = btn('Export Video', () => this._onExportClick());
+        this._exportBtn.title = this.canvas
+            ? 'Record this sequence as a WebM video'
+            : 'Video export unavailable — no canvas was passed to TimelineBar';
+        this._exportBtn.disabled = true;
+        // row.appendChild(this._exportBtn);
+
         return row;
+    }
+    async _onShareClick() {
+        if (!this.poses.hasPoses) return;
+        const url = buildShareUrl(this.poses.export());
+        try {
+            await navigator.clipboard.writeText(url);
+            this._flashBtn(this._shareBtn, 'Copied!');
+        } catch (err) {
+            console.warn('TimelineBar: clipboard write failed, falling back to prompt', err);
+            window.prompt('Copy this link:', url);
+        }
+    }
+    async _onExportClick() {
+        if (!this._videoExporter || this._videoExporter.recording) return;
+        if (this.poses.poses.length < 2) {
+            window.alert('Save at least 2 poses before exporting a video.');
+            return;
+        }
+        const original = this._exportBtn.textContent;
+        this._exportBtn.disabled = true;
+        this._exportBtn.textContent = 'Recording…';
+        try {
+            await this._videoExporter.recordSequence();
+            this._exportBtn.textContent = 'Downloaded!';
+        } catch (err) {
+            console.warn('TimelineBar: video export failed', err);
+            this._exportBtn.textContent = 'Export failed';
+        } finally {
+            setTimeout(() => {
+                this._exportBtn.textContent = original;
+                this._exportBtn.disabled = this.poses.poses.length < 2;
+            }, 1500);
+        }
+    }
+    _flashBtn(button, text) {
+        if (!button) return;
+        const original = button.textContent;
+        button.textContent = text;
+        setTimeout(() => {
+            button.textContent = original;
+        }, 1500);
     }
     _buildTrack() {
         this._track = el('div', 'mn-timeline-track');
@@ -157,12 +218,14 @@ export class TimelineBar {
             mark.appendChild(remove);
 
             mark.addEventListener('click', () => this.poses.goToPose(index));
+
             this._wireDragHandlers(mark, index);
+
             this._marksLayer.appendChild(mark);
         });
         this._onProgress(this._lastProgress ?? 0);
     }
-     _wireDragHandlers(mark, index) {
+    _wireDragHandlers(mark, index) {
         mark.addEventListener('dragstart', (e) => {
             // Don't start a reorder-drag when grabbing the remove button.
             if (e.target.closest('.mn-timeline-mark-remove')) {
@@ -174,43 +237,48 @@ export class TimelineBar {
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', String(index));
         });
- 
+
         mark.addEventListener('dragend', () => {
             mark.classList.remove('mn-timeline-mark-dragging');
             this._clearDragOverIndicators();
             this._dragFromIndex = null;
         });
- 
+
         mark.addEventListener('dragover', (e) => {
             if (this._dragFromIndex === null) return;
             e.preventDefault();   // required to allow a drop here
             e.dataTransfer.dropEffect = 'move';
- 
+
             const rect = mark.getBoundingClientRect();
             const before = (e.clientX - rect.left) < rect.width / 2;
             this._clearDragOverIndicators();
             mark.classList.add(before ? 'mn-timeline-mark-dragover-before' : 'mn-timeline-mark-dragover-after');
             mark.dataset.dropBefore = before;
         });
- 
+
         mark.addEventListener('dragleave', () => {
             mark.classList.remove('mn-timeline-mark-dragover-before', 'mn-timeline-mark-dragover-after');
         });
- 
+
         mark.addEventListener('drop', (e) => {
             e.preventDefault();
             const fromIndex = this._dragFromIndex;
             this._clearDragOverIndicators();
             if (fromIndex === null) return;
- 
+
             const targetIndex = Number(mark.dataset.index);
             const before = mark.dataset.dropBefore === 'true';
             let toIndex = before ? targetIndex : targetIndex + 1;
- 
+
+            // Dropping past the end of the array (right half of the last
+            // mark) — clamp back into range; splice would otherwise be
+            // asked for an index equal to the pre-removal length.
             toIndex = Math.min(toIndex, this.poses.poses.length - 1);
- 
+
+            // Account for the left-shift caused by removing the dragged
+            // item from earlier in the array before it's reinserted.
             if (fromIndex < toIndex) toIndex -= 1;
- 
+
             this.poses.reorderPose(fromIndex, toIndex);
         });
     }
@@ -250,6 +318,12 @@ export class TimelineBar {
         this._playBtn.disabled = poseCount < 2;
         this._playBtn.textContent = isPlaying ? 'Stop' : 'Play';
         this._playBtn.classList.toggle('mn-btn-playing', isPlaying);
+
+        if (this._shareBtn) this._shareBtn.disabled = poseCount === 0;
+        if (this._exportBtn) {
+            const recording = Boolean(this._videoExporter?.recording);
+            this._exportBtn.disabled = !this.canvas || poseCount < 2 || recording;
+        }
 
         if (!isPlaying) {
             const pos = poseCount > 1 ? this.poses.playIndex / (poseCount - 1) : 0;

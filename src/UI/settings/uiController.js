@@ -1,4 +1,4 @@
-import { el, label, btn, divider } from './domHelpers.js';
+import { el, label, btn, divider } from '../domHelpers.js';
 
 export class UIController {
     constructor({ poseManager, proportionController, inputHandler, visibility }) {

@@ -31,34 +31,50 @@ export class ImageCharacterRenderer {
 
         this.expressionOverlays = {};
     }
-    async loadDefaults(defaultParts = {}, pivots = {}) {
-        const loads = Object.entries(defaultParts).map(([boneName, url]) => {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    this.setPart(boneName, img, pivots[boneName]);
-                    resolve();
-                };
-                img.onerror = () => {
-                    console.warn(`ImageCharacterRenderer: failed to load default for ${boneName} (${url})`);
-                    resolve(); // don't block the rest of the character on one missing part
-                };
-                img.src = url;
-            });
-        });
-        await Promise.all(loads);
+    async loadDefaults(defaultCharacter) {
+        for (const [boneName, config] of Object.entries(defaultCharacter)) {
+            const img = new Image();
+
+            img.onload = () => {
+                this.setPart(boneName, img, config);
+                resolve();
+            };
+
+            img.src = config.src;
+        }
+        
+        // const loads = Object.entries(defaultParts).map(([boneName, url]) => {
+        //     return new Promise((resolve) => {
+        //         const img = new Image();
+        //         img.onload = () => {
+        //             this.setPart(boneName, img, {...pivots[boneName], ...partSettings[boneName]});
+        //             resolve();
+        //         };
+        //         img.onerror = () => {
+        //             console.warn(`ImageCharacterRenderer: failed to load default for ${boneName} (${url})`);
+        //             resolve(); // don't block the rest of the character on one missing part
+        //         };
+        //         img.src = url;
+        //     });
+        // });
+        // await Promise.all(loads);
     }
-    setPart(boneName, image, pivot = {}) {
+    setPart(boneName, image, options = {}) {
         this.parts[boneName] = {
             image,
-            pivotX: pivot.pivotX ?? 0.5,    // bottom-center at bone head
-            pivotY: pivot.pivotY ?? 0.05,   // top-center at bone head
-            scaleX: pivot.scaleX ?? 1,      // bottom-center at bone head
-            scaleY: pivot.scaleY ?? 1,
-            flipY: pivot.flipY ?? true,
-            squashStretch: pivot.squashStretch ?? true,
-            depth: pivot.depth ?? this._baseDepths[boneName] ?? this.drawOrder.length,
-            anchor: pivot.anchor ?? 'head',
+            pivotX: options.pivotX ?? 0.5,    // bottom-center at bone head
+            pivotY: options.pivotY ?? 0.05,   // top-center at bone head
+            scaleX: options.scaleX ?? 1,      // bottom-center at bone head
+            scaleY: options.scaleY ?? 1,
+            flipY: options.flipY ?? true,
+
+            squashStretch: options.squashStretch ?? true,
+            maxStretch: options.MaxStretch,
+            maxSquash: options.maxSquash,
+            speedCap: options.speedCap,
+
+            depth: options.depth ?? this._baseDepths[boneName] ?? this.drawOrder.length,
+            anchor: options.anchor ?? 'head',
         };
     }
     setPartDepth(boneName, depth) {
@@ -146,37 +162,45 @@ export class ImageCharacterRenderer {
         }
     }
     _drawImageOnBone(ctx, bone, part, alpha = 1) {
-        const { image, pivotX, pivotY, scaleX, scaleY, anchor, squashStretch, flipY } = part;
+        const { image, pivotX, pivotY, scaleX, scaleY, anchor, squashStretch, flipY, maxStretch, maxSquash, speedCap } = part;
         if (!image || !image.complete || alpha <= 0) return;
 
-        // Scale image height to bone length; width scales proportionally
+        // Base size
         const aspectRatio = image.naturalWidth / image.naturalHeight;
         let dh = bone.length * this.globalScale * scaleY;
         let dw = dh * aspectRatio * scaleX;
 
+        // Squash & Stretch
         const ss = this.squashStretch;
+
         if (ss.enabled && squashStretch) {
-            const factor = Math.min(bone.velocity / ss.speedCap, 1);
-            const stretchScale = 1 + factor * ss.maxStretch;
-            const squashScale  = 1 - factor * ss.maxSquash;
-            dh *= stretchScale;   // longer along the bone at speed
-            dw *= squashScale;    // thinner across the bone at speed
+            const cap = speedCap ?? ss.speedCap;
+            const stretch = maxStretch ?? ss.maxStretch;
+            const squash = maxSquash ?? ss.maxSquash;
+
+            const factor = Math.min(bone.velocity / cap, 1);
+
+            dh *= 1 + factor * stretch;
+            dw *= 1 - factor * squash;
         }
-        
-        let anchorT = 0;              // 'head'
+
+        // Anchor point
+        let anchorT = 0;
         if (anchor === 'center') anchorT = 0.5;
         if (anchor === 'tail')   anchorT = 1.0;
 
-        const anchorX = bone.worldX + Math.sin(bone.worldAngle) * bone.length * anchorT;
-        const anchorY = bone.worldY + Math.cos(bone.worldAngle) * bone.length * anchorT;
+        const anchorX =
+            bone.worldX + Math.sin(bone.worldAngle) * bone.length * anchorT;
+        const anchorY =
+            bone.worldY + Math.cos(bone.worldAngle) * bone.length * anchorT;
 
         ctx.save();
         ctx.globalAlpha = alpha;
+
         ctx.translate(anchorX, anchorY);
         ctx.rotate(-bone.worldAngle);
 
-        // flip image vertically in local space
-        if ( flipY ) ctx.scale(1, -1);
+        if (flipY) ctx.scale(1, -1);
 
         ctx.drawImage(
             image,
@@ -185,7 +209,7 @@ export class ImageCharacterRenderer {
             dw,
             dh
         );
-        
+
         ctx.restore();
     }
     _sliceHair() {

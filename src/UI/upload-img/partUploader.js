@@ -1,15 +1,11 @@
-import { el, divider } from "./domHelpers.js"
+import { el, divider } from "../domHelpers.js"
 
 export class PartUploader {
-    constructor({ renderer, onCharacterLoad, onCharacterClear, defaultParts, defaultPivots }) {
+    constructor({ renderer, onCharacterLoad, onCharacterClear, defaultCharacter = {} }) {
         this.renderer         = renderer;
         this.onCharacterLoad  = onCharacterLoad  ?? (() => {});
         this.onCharacterClear = onCharacterClear ?? (() => {});
-
-        // boneName -> default image URL / pivot, used to restore a part (or all parts)
-        // back to their starting look instead of leaving the slot empty.
-        this._defaultParts  = defaultParts  ?? {};
-        this._defaultPivots = defaultPivots ?? {};
+        this._defaultCharacter  = defaultCharacter;
 
         this._panel          = null;
         this._uploadedCount  = 0;
@@ -187,7 +183,6 @@ export class PartUploader {
             const rect = pivotCanvas.getBoundingClientRect();
             const px = (e.clientX - rect.left) / rect.width;
             const py = (e.clientY - rect.top)  / rect.height;
-            this._setPivot(boneName, px, py, pivotCanvas);
         });
 
         row.appendChild(pivotCanvas);
@@ -291,8 +286,6 @@ export class PartUploader {
             this.renderer.setPart(boneName, img, pivot);
             this._showThumbnail(zone, img, url);
             // this._drawPivotCanvas(pivotCanvas, img, pivot.pivotX, pivot.pivotY);
-            console.log(pivot.pivotX)
-            // pivotCanvas.style.display = 'block';
 
             if (resetBtn) resetBtn.style.display = 'flex';
 
@@ -341,61 +334,6 @@ export class PartUploader {
 
         img.src = url;
     }
-    _setPivot(boneName, px, py, pivotCanvas) {
-        this._pivots[boneName] = { pivotX: px, pivotY: py };
-
-        // Update the renderer with the new pivot
-        const part = this.renderer.parts[boneName];
-        if (part) {
-            part.pivotX = px;
-            part.pivotY = py;
-        }
-
-        // Redraw the pivot canvas
-        const img = part?.image;
-        if (img) this._drawPivotCanvas(pivotCanvas, img, px, py);
-    }
-    _drawPivotCanvas(canvas, img, pivotX, pivotY) {
-        const ctx  = canvas.getContext('2d');
-        const W    = canvas.width;
-        const H    = canvas.height;
-
-        ctx.clearRect(0, 0, W, H);
-
-        // Draw image scaled to fit
-        const aspect = img.naturalWidth / img.naturalHeight;
-        let dw = W, dh = H;
-        if (aspect > 1) dh = W / aspect;
-        else            dw = H * aspect;
-        const dx = (W - dw) / 2;
-        const dy = (H - dh) / 2;
-
-        ctx.drawImage(img, dx, dy, dw, dh);
-
-        // Pivot crosshair
-        const cx = dx + pivotX * dw;
-        const cy = dy + pivotY * dh;
-
-        ctx.strokeStyle = '#7af4eb';
-        ctx.lineWidth   = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx - 5, cy);
-        ctx.lineTo(cx + 5, cy);
-        ctx.moveTo(cx, cy - 5);
-        ctx.lineTo(cx, cy + 5);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#7af4eb';
-        ctx.fill();
-
-        // Tooltip hint
-        ctx.fillStyle   = 'rgba(122,244,235,0.7)';
-        ctx.font        = '6px sans-serif';
-        ctx.textAlign   = 'center';
-        ctx.fillText('click to set pivot', W / 2, H - 2);
-    }
     _showThumbnail(zone, img, url) {
         zone.innerHTML       = '';
         zone.style.padding   = '2px';
@@ -406,7 +344,7 @@ export class PartUploader {
         thumb.className = 'pu-thumb';
         zone.appendChild(thumb);
     }
-    // Restores a zone to its empty "+" state (used when a bone has no default image to fall back to)
+    // Restores a zone to its empty "+" state
     _resetZone(zone) {
         zone.innerHTML        = '';
         zone.style.padding    = '';
@@ -418,11 +356,11 @@ export class PartUploader {
         zoneLabel.textContent = '+';
         zone.appendChild(zoneLabel);
     }
-    // Resets one bone's part back to its default image (or clears it, if no default exists for it)
+    // Resets one bone's part back to its default image
     _resetPart(boneName, zone, pivotCanvas, resetBtn) {
-        const defaultUrl = this._defaultParts[boneName];
+        const defaultCharacter = this._defaultCharacter[boneName];
 
-        if (!defaultUrl) {
+        if (!defaultCharacter) {
             this.renderer.removePart(boneName);
             this._resetZone(zone);
             if (pivotCanvas) pivotCanvas.style.display = 'none';
@@ -432,19 +370,25 @@ export class PartUploader {
 
         const img = new Image();
         img.onload = () => {
-            const pivot = this._defaultPivots[boneName] ?? { pivotX: 0.5, pivotY: 0.05 };
-            this._pivots[boneName] = pivot;
-            this.renderer.setPart(boneName, img, pivot);
-            this._resetZone(zone); // character uses the default image again, but the slot itself looks empty
-            if (resetBtn) resetBtn.style.display = 'none';
+            const { src, ...options } = defaultCharacter;
+
+            this._pivots[boneName] = {
+                pivotX: options.pivotX ?? 0.5,
+                pivotY: options.pivotY ?? 0.05,
+            };
+
+            this.renderer.setPart(boneName, img, options);
+            this._resetZone(zone);
+            if (resetBtn) resetBtn.style.display = "none";
         };
+
         img.onerror = () => {
-            console.warn(`PartUploader: failed to load default for ${boneName} (${defaultUrl})`);
+            console.warn( `failed to load default for ${boneName} (${defaultCharacter.src})` );
         };
-        img.src = defaultUrl;
+        img.src = defaultCharacter.src;
     }
     _clearAll(clearBtn) {
-        // Every body-part slot goes back to its default image (or empty, if it has none)
+        // Every body-part slot goes back to its default image
         for (const group of this._groups) {
             for (const { boneName } of group.slots) {
                 const slotEls = this._slotEls[boneName];
@@ -453,9 +397,6 @@ export class PartUploader {
             }
         }
 
-        // Hair and the expression overlay have no default asset wired up yet, so they're
-        // still fully cleared. Pass defaultParts.hair / a default alert-face URL through
-        // the constructor and mirror the body-part logic above if you want those restored too.
         this.renderer.removeHair();
         this.renderer.removeExpressionOverlay('Head');
         if (this._hairZone)       this._resetZone(this._hairZone);

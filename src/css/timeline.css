@@ -29,7 +29,6 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    width: 560px;
     padding: 16px 20px;
     background: rgba(20, 20, 20, 0.88);
     backdrop-filter: blur(12px);

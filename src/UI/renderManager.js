@@ -1,12 +1,12 @@
-import { ImageCharacterRenderer } from './imageCharacterRenderer.js';
+import { ImageCharacterRenderer } from './upload-img/imageCharacterRenderer.js';
 
 export class RendererManager {
     constructor(skeleton, secondBodyLayer) {
         this._image = new ImageCharacterRenderer(skeleton, secondBodyLayer);
         this.imageRenderer = this._image;
     }
-    async init(defaultParts = {}) {
-        await this._image.loadDefaults(defaultParts);
+    async init(defaultCharacter = {}) {
+        await this._image.loadDefaults(defaultCharacter);
     }
     draw(ctx) {
         this._image.draw(ctx);

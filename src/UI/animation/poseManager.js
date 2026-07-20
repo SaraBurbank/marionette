@@ -119,6 +119,10 @@ export class PoseManager {
     }
     onStateChange(cb) { 
         this._listeners.push(cb); 
+        return () => {
+            const idx = this._listeners.indexOf(cb);
+            if (idx !== -1) this._listeners.splice(idx, 1);
+        };
     }
     onProgress(fn) {
         this._progressListeners.push(fn);
@@ -257,7 +261,9 @@ export class PoseManager {
                 const bone = this.skeleton.getBone(key);
                 bone.localAngle = value;
             } catch { 
-                console.log(`Bone ${key} not found`);
+                if (key !== "_gsap") {
+                    console.log(`Bone ${key} not found`);
+                }
             }
         }
         this.skeleton.update();
