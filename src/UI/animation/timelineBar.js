@@ -44,7 +44,7 @@ export class TimelineBar {
         row.appendChild(this._savePoseBtn);
 
         this._resetBtn = btn('Reset pose', () => {
-            if (this.poses.hasPoses) this.poses.reset();
+            this.poses.reset();
         });
         row.appendChild(this._resetBtn);
 
